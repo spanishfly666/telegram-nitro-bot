@@ -122,82 +122,50 @@ def index():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # Verify webhook secret
     if request.args.get('secret') != WEBHOOK_SECRET:
         return abort(403)
-
     data = request.get_json(force=True) or {}
     update_id = data.get('update_id')
-    # Determine user_id for logging
-    user_part = None
-    if 'message' in data and data['message']:
-        user_part = data['message']['from']['id']
-    elif 'callback_query' in data and data['callback_query']:
-        user_part = data['callback_query']['from']['id']
-    # Log raw conversation with table check
+    # Log raw update
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
     try:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute(
-            "INSERT INTO messages (update_id, user_id, raw_data) VALUES (?, ?, ?)",
-            (str(update_id), user_part, json.dumps(data))
-        )
+        user_part = data.get('message', {}).get('from', {}).get('id') or data.get('callback_query', {}).get('from', {}).get('id')
+        c.execute("INSERT OR IGNORE INTO messages (update_id, user_id, raw_data) VALUES (?, ?, ?)",
+                  (str(update_id), user_part, json.dumps(data)))
         conn.commit()
     except sqlite3.OperationalError:
         init_db()
-        c.execute(
-            "INSERT INTO messages (update_id, user_id, raw_data) VALUES (?, ?, ?)",
-            (str(update_id), user_part, json.dumps(data))
-        )
+        c.execute("INSERT INTO messages (update_id, user_id, raw_data) VALUES (?, ?, ?)",
+                  (str(update_id), user_part, json.dumps(data)))
         conn.commit()
     finally:
         conn.close()
-    print("[DEBUG] Logged message update_id=", update_id)
+    print(f"[DEBUG] Logged message {update_id}")
 
-    # Telegram message handling
-    if 'message' in data and data['message']:
+    # Handle text messages
+    if 'message' in data:
         msg = data['message']
         chat_id = msg['from']['id']
         text = msg.get('text', '').strip()
-
-        # Custom deposit amount entry
+        # Custom deposit
         if deposit_requests.get(chat_id) == 'custom':
             try:
                 usd_amount = float(text)
                 if usd_amount < 10:
-                    send_message(chat_id, "Minimum deposit is $10. Please enter an amount >= 10.")
+                    send_message(chat_id, "Minimum $10 required.")
                 else:
                     order_id = f"{chat_id}_{int(time.time())}"
                     invoice = requests.post(
                         "https://api.nowpayments.io/v1/invoice",
-                        json={
-                            "price_amount": usd_amount,
-                            "price_currency": "usd",
-                            "pay_currency": "btc",
-                            "order_id": order_id,
-                            "ipn_callback_url": f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}",
-                            "is_fixed_rate": True
-                        },
+                        json={"price_amount": usd_amount, "price_currency": "usd", "pay_currency": "btc", "order_id": order_id, "ipn_callback_url": f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}", "is_fixed_rate": True},
                         headers={"x-api-key": NOWPAYMENTS_API_KEY}
                     ).json()
-                    pay_address = invoice.get('pay_address')
-                    pay_amount = invoice.get('pay_amount')
-                    # Store deposit
-                    conn = sqlite3.connect(DB_PATH)
-                    c = conn.cursor()
-                    c.execute(
-                        "INSERT OR IGNORE INTO deposits (order_id, user_id, pay_address, pay_amount) VALUES (?, ?, ?, ?)",
-                        (order_id, chat_id, pay_address, pay_amount)
-                    )
-                    conn.commit()
-                    conn.close()
-                    send_message(chat_id, f"Send exactly {pay_amount} BTC to this address:\n`{pay_address}`")
+                    send_message(chat_id, f"Send exactly {invoice['pay_amount']} BTC to:\n{invoice['pay_address']}")
                     deposit_requests.pop(chat_id, None)
             except ValueError:
-                send_message(chat_id, "Invalid amount. Enter a number for USD amount.")
+                send_message(chat_id, "Enter a valid number.")
             return '', 200
-
-        # /start command
         if text == '/start':
             buttons = [
                 [{"text": "💰 Deposit", "callback_data": "deposit"}],
@@ -206,32 +174,59 @@ def webhook():
             ]
             if chat_id == ADMIN_ID:
                 buttons.append([{"text": "🔧 Admin", "callback_data": "admin"}])
-            send_message(chat_id, "Welcome! Choose an option:", buttons)
+            send_message(chat_id, "Welcome!", buttons)
 
     # Callback queries
-    if 'callback_query' in data and data['callback_query']:
+    if 'callback_query' in data:
         cb = data['callback_query']
         chat_id = cb['from']['id']
-        answer_callback(cb['id'])
         action = cb['data']
-        print(f"[DEBUG] Callback action={action} from {chat_id}")
-
-        # Deposit menu
+        answer_callback(cb['id'])
+        print(f"[DEBUG] action={action}")
         if action == 'deposit':
-            buttons = [
-                [{"text":"$10","callback_data":"deposit_10"}],
-                [{"text":"$15","callback_data":"deposit_15"}],
-                [{"text":"$25","callback_data":"deposit_25"}],
-                [{"text":"$50","callback_data":"deposit_50"}],
-                [{"text":"Custom","callback_data":"deposit_custom"}]
-            ]
-            send_message(chat_id, "Select deposit amount (USD):", buttons)
+            buttons = [[{"text": f"${amt}", "callback_data": f"deposit_{amt}"}] for amt in (10,15,25,50)] + [[{"text":"Custom","callback_data":"deposit_custom"}]]
+            send_message(chat_id, "Select deposit amount:", buttons)
+        elif action.startswith('deposit_'):
+            part = action.split('_',1)[1]
+            if part == 'custom':
+                deposit_requests[chat_id] = 'custom'
+                send_message(chat_id, "Enter custom USD amount (>=10):")
+            else:
+                usd = float(part)
+                order_id = f"{chat_id}_{int(time.time())}"
+                inv = requests.post(
+                    "https://api.nowpayments.io/v1/invoice",
+                    json={"price_amount": usd, "price_currency":"usd","pay_currency":"btc","order_id":order_id,"ipn_callback_url":f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}","is_fixed_rate":True},
+                    headers={"x-api-key":NOWPAYMENTS_API_KEY}
+                ).json()
+                send_message(chat_id, f"Send exactly {inv['pay_amount']} BTC to:\n{inv['pay_address']}")
+        elif action == 'balance':
+            bal = get_balance(chat_id)
+            send_message(chat_id, f"Your balance: {bal:.8f} BTC")
+        elif action == 'buy_categories':
+            buttons = [[{"text":"Fullz","callback_data":"category_fullz"}],
+                       [{"text":"Fullz with CS","callback_data":"category_fullz_cs"}],
+                       [{"text":"CPN's","callback_data":"category_cpn"}]]
+            send_message(chat_id, "Choose category:", buttons)
+        elif action.startswith('category_'):
+            prods = get_products()
+            buttons = [[{"text":f"{n} - {p:.8f} BTC","callback_data":f"buy_{i}"}] for i,n,p in prods]
+            send_message(chat_id, "Products:", buttons)
+        elif action.startswith('buy_'):
+            pid = int(action.split('_')[1])
+            bal = get_balance(chat_id)
+            conn = sqlite3.connect(DB_PATH); c = conn.cursor(); c.execute("SELECT name,filename,price FROM products WHERE id=?",(pid,)); row=c.fetchone();conn.close()
+            if not row: send_message(chat_id,"Not found.")
+            else:
+                name,fn,pr=row
+                if bal<pr: send_message(chat_id,"Insufficient.")
+                else:
+                    update_balance(chat_id,-pr)
+                    send_document(chat_id,fn)
+                    send_message(chat_id,f"Bought {name}!")
 
-        # Handle predefined and custom deposit selections, buy, balance, categories as before...
+    return '',200
 
-    return '', 200
-
-# === STARTUP ===
-if __name__ == '__main__':
-    print("[DEBUG] Starting Flask app...")
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+if __name__=='__main__':
+    print("[DEBUG] Starting Flask...")
+    app.run(host='0.0.0.0',port=int(os.environ.get('PORT',5000)))
