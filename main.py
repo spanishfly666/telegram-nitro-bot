@@ -145,12 +145,12 @@ def webhook():
 
     data = request.get_json()
 
-    # Handle Telegram updates
+    # Process Telegram webhook updates
     if "message" in data or "callback_query" in data:
         update = Update.de_json(data, application.bot)
         application.update_queue.put(update)
 
-    # Handle NOWPayments (if any additional logic applies)
+    # Optional: process NOWPayments webhook here too
     if data.get("payment_status") == "confirmed":
         user_id = int(data.get("order_id"))
         amount = float(data.get("pay_amount", 0))
@@ -158,13 +158,15 @@ def webhook():
 
     return '', 200
 
+
 # === STARTUP ===
 if __name__ == '__main__':
     os.makedirs(FILE_DIR, exist_ok=True)
     init_db()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
-    application.run_webhook(listen="0.0.0.0", port=int(os.environ.get("PORT", 5000)), webhook_url=f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}")
-
-# Flask app object for Heroku Procfile
-app = application.web_app
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        webhook_url=f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}"
+    )
