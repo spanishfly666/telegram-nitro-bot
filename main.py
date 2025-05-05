@@ -118,12 +118,29 @@ def webhook():
     conn.commit()
     conn.close()
 
-    # IPN callbacks for confirmed and partially_paid
+        # IPN callbacks for confirmed and partially_paid
     status = data.get('payment_status')
     if status in ('confirmed', 'partially_paid'):
         uid = int(str(data.get('order_id')).split('_')[0])
-        amt = float(data.get('pay_amount') or data.get('payment_amount') or 0)
-        update_balance(uid, amt)
+        btc_amt = float(data.get('pay_amount') or data.get('payment_amount') or 0)
+        # Convert BTC to USD for hard USD credit
+        try:
+            est = requests.get(
+                'https://api.nowpayments.io/v1/estimate',
+                params={
+                    'source_currency': 'BTC',
+                    'target_currency': 'USD',
+                    'source_amount': btc_amt
+                },
+                headers={'x-api-key': NOWPAYMENTS_API_KEY}
+            ).json()
+            usd_amt = float(est.get('estimated_amount', 0))
+        except Exception:
+            usd_amt = 0.0
+        # Credit USD balance
+        update_balance(uid, usd_amt)
+        # Notify user of USD credit
+        send_message(uid, f"Your deposit of {btc_amt:.8f} BTC has been credited as {usd_amt:.2f} credits.")
         return '', 200
 
     # Handle user messages
@@ -174,8 +191,24 @@ def webhook():
         elif action == 'deposit_manual':
             send_message(chat_id, 'Please contact the admin @goatflow517 for manual deposits.')
         elif action == 'balance':
-            bal = get_balance(chat_id)
-            send_message(chat_id, f'Your balance: {bal:.8f} BTC')
+            # Show USD equivalent balance
+            bal_btc = get_balance(chat_id)
+            # Fetch USD estimate from NowPayments
+            try:
+                est = requests.get(
+                    'https://api.nowpayments.io/v1/estimate',
+                    params={
+                        'source_currency': 'BTC',
+                        'target_currency': 'USD',
+                        'source_amount': bal_btc
+                    },
+                    headers={'x-api-key': NOWPAYMENTS_API_KEY}
+                ).json()
+                bal_usd = float(est.get('estimated_amount', 0))
+                text = f"Your balance: {bal_usd:,.2f} credits ({bal_btc:.8f} BTC)"
+            except Exception:
+                text = f"Your balance: {bal_btc:.8f} BTC"
+            send_message(chat_id, text)
         elif action == 'buy_categories':
             buttons = [[{'text': 'Fullz', 'callback_data': 'category_fullz'}],
                        [{'text': 'Fullz with CS', 'callback_data': 'category_fullz_cs'}],
