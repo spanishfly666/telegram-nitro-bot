@@ -161,7 +161,12 @@ def webhook():
                         json={"price_amount": usd_amount, "price_currency": "usd", "pay_currency": "btc", "order_id": order_id, "ipn_callback_url": f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}", "is_fixed_rate": True},
                         headers={"x-api-key": NOWPAYMENTS_API_KEY}
                     ).json()
-                    send_message(chat_id, f"Send exactly {invoice['pay_amount']} BTC to:\n{invoice['pay_address']}")
+                    pay_amount = invoice.get('pay_amount') or invoice.get('payment_amount')
+                    pay_address = invoice.get('pay_address') or invoice.get('payment_address')
+                    if not pay_amount or not pay_address:
+                        send_message(chat_id, f"Invoice error: {invoice}")
+                    else:
+                        send_message(chat_id, f"Send exactly {pay_amount} BTC to:\n{pay_address}")
                     deposit_requests.pop(chat_id, None)
             except ValueError:
                 send_message(chat_id, "Enter a valid number.")
@@ -199,7 +204,12 @@ def webhook():
                     json={"price_amount": usd, "price_currency":"usd","pay_currency":"btc","order_id":order_id,"ipn_callback_url":f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}","is_fixed_rate":True},
                     headers={"x-api-key":NOWPAYMENTS_API_KEY}
                 ).json()
-                send_message(chat_id, f"Send exactly {inv['pay_amount']} BTC to:\n{inv['pay_address']}")
+                pay_amount = inv.get('pay_amount') or inv.get('payment_amount')
+                pay_address = inv.get('pay_address') or inv.get('payment_address')
+                if not pay_amount or not pay_address:
+                    send_message(chat_id, f"Invoice error: {inv}")
+                else:
+                    send_message(chat_id, f"Send exactly {pay_amount} BTC to:\n{pay_address}")
         elif action == 'balance':
             bal = get_balance(chat_id)
             send_message(chat_id, f"Your balance: {bal:.8f} BTC")
