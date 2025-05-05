@@ -10,7 +10,7 @@ from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL
 app = Flask(__name__)
 DB_PATH = 'database.sqlite'
 FILE_DIR = 'files'
-# Track custom deposit state
+# Track deposit state for BTC deposits
 deposit_requests = {}
 
 # === DATABASE SETUP ===
@@ -38,7 +38,6 @@ def get_balance(user_id):
     conn.close()
     return bal
 
-
 def update_balance(user_id, amount):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -46,7 +45,6 @@ def update_balance(user_id, amount):
     c.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, user_id))
     conn.commit()
     conn.close()
-
 
 def get_products():
     conn = sqlite3.connect(DB_PATH)
@@ -58,7 +56,7 @@ def get_products():
 
 # === NOWPAYMENTS HELPERS ===
 def create_invoice(usd_amount, order_id):
-    create_resp = requests.post(
+    resp = requests.post(
         'https://api.nowpayments.io/v1/invoice',
         json={
             'price_amount': usd_amount,
@@ -70,9 +68,7 @@ def create_invoice(usd_amount, order_id):
         },
         headers={'x-api-key': NOWPAYMENTS_API_KEY}
     ).json()
-    # Return full invoice_url for external checkout
-    invoice_url = create_resp.get('invoice_url')
-    return invoice_url, create_resp
+    return resp.get('invoice_url'), resp
 
 # === TELEGRAM HELPERS ===
 def send_message(chat_id, text, buttons=None):
@@ -119,39 +115,30 @@ def webhook():
     conn.commit()
     conn.close()
 
-    # Handle IPN callbacks (confirmed/partially_paid)
+    # IPN callbacks
     status = data.get('payment_status')
     if status in ('confirmed', 'partially_paid'):
         uid = int(str(data.get('order_id')).split('_')[0])
-        amount = float(data.get('pay_amount') or data.get('payment_amount') or 0)
-        update_balance(uid, amount)
-        print(f'[DEBUG] Credited {amount} BTC to user {uid} (status={status})')
+        amt = float(data.get('pay_amount') or data.get('payment_amount') or 0)
+        update_balance(uid, amt)
         return '', 200
 
-    # Handle user messages
+    # Handle text messages (amount entry)
     if 'message' in data:
         msg = data['message']
         chat_id = msg['from']['id']
         text = msg.get('text', '').strip()
-        # Custom deposit flow
-        if deposit_requests.get(chat_id) == 'custom':
+        if deposit_requests.get(chat_id) == 'await_amount':
             try:
                 usd = float(text)
-                if usd < 10:
-                    send_message(chat_id, 'Minimum $10 required.')
-                else:
-                    order_id = f'{chat_id}_{int(time.time())}'
-                    invoice_url, _ = create_invoice(usd, order_id)
-                    if invoice_url:
-                        # Send external invoice link
-                        send_message(chat_id, f'Complete payment here:\n{invoice_url}')
-                    else:
-                        send_message(chat_id, 'Error creating invoice.')
-                    deposit_requests.pop(chat_id, None)
+                order_id = f'{chat_id}_{int(time.time())}'
+                invoice_url, _ = create_invoice(usd, order_id)
+                send_message(chat_id, f'Complete payment here:
+{invoice_url}')
             except ValueError:
                 send_message(chat_id, 'Enter a valid number.')
+            deposit_requests.pop(chat_id, None)
             return '', 200
-        # /start command
         if text == '/start':
             buttons = [
                 [{'text': '💰 Deposit', 'callback_data': 'deposit'}],
@@ -169,23 +156,16 @@ def webhook():
         action = cb['data']
         answer_callback(cb['id'])
         if action == 'deposit':
-            opts = [10, 15, 25, 50]
-            buttons = [[{'text': f'${amt}', 'callback_data': f'deposit_{amt}'}] for amt in opts]
-            buttons.append([{'text': 'Custom', 'callback_data': 'deposit_custom'}])
-            send_message(chat_id, 'Select deposit amount (USD):', buttons)
-        elif action.startswith('deposit_'):
-            part = action.split('_', 1)[1]
-            if part == 'custom':
-                deposit_requests[chat_id] = 'custom'
-                send_message(chat_id, 'Enter custom USD amount (>=10):')
-            else:
-                usd = float(part)
-                order_id = f'{chat_id}_{int(time.time())}'
-                invoice_url, _ = create_invoice(usd, order_id)
-                if invoice_url:
-                    send_message(chat_id, f'Complete payment here:\n{invoice_url}')
-                else:
-                    send_message(chat_id, 'Error creating invoice.')
+            buttons = [
+                [{'text': 'BTC', 'callback_data': 'deposit_btc'}],
+                [{'text': 'Manual Deposit', 'callback_data': 'deposit_manual'}]
+            ]
+            send_message(chat_id, 'Choose deposit method:', buttons)
+        elif action == 'deposit_btc':
+            deposit_requests[chat_id] = 'await_amount'
+            send_message(chat_id, 'Enter USD amount to deposit (min $10):')
+        elif action == 'deposit_manual':
+            send_message(chat_id, 'Please contact the admin @goatflow517 for manual deposits.')
         elif action == 'balance':
             bal = get_balance(chat_id)
             send_message(chat_id, f'Your balance: {bal:.8f} BTC')
@@ -216,7 +196,6 @@ def webhook():
                     update_balance(chat_id, -pr)
                     send_document(chat_id, fn)
                     send_message(chat_id, f'You bought {name}!')
-
     return '', 200
 
 if __name__ == '__main__':
