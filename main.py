@@ -118,14 +118,15 @@ def webhook():
     conn.commit()
     conn.close()
 
-        # IPN callbacks for both confirmed and partially_paid
+    # IPN callbacks for confirmed and partially_paid
     status = data.get('payment_status')
-    if status in ('confirmed', 'partially_paid'): ('confirmed', 'partially_paid'):
+    if status in ('confirmed', 'partially_paid'):
         uid = int(str(data.get('order_id')).split('_')[0])
         amt = float(data.get('pay_amount') or data.get('payment_amount') or 0)
         update_balance(uid, amt)
         return '', 200
 
+    # Handle user messages
     if 'message' in data:
         msg = data['message']
         chat_id = msg['from']['id']
