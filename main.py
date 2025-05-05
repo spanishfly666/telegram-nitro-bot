@@ -71,21 +71,15 @@ def create_invoice(usd_amount, order_id):
         headers={'x-api-key': NOWPAYMENTS_API_KEY}
     ).json()
     invoice_id = create_resp.get('id')
-    pay_address = None
-    pay_amount = None
-    detail_resp = None
-    if invoice_id:
-        # Poll for payment address and amount
-        for _ in range(5):
-            detail_resp = requests.get(
-                f'https://api.nowpayments.io/v1/invoice/{invoice_id}',
-                headers={'x-api-key': NOWPAYMENTS_API_KEY}
-            ).json()
-            pay_address = detail_resp.get('payment_address') or detail_resp.get('pay_address')
-            pay_amount = detail_resp.get('payment_amount') or detail_resp.get('pay_amount')
-            if pay_address and pay_amount:
-                break
-            time.sleep(1)
+    if not invoice_id:
+        return None, None, create_resp
+    # Fetch payment details directly
+    detail_resp = requests.get(
+        f'https://api.nowpayments.io/v1/invoice/{invoice_id}/payment',
+        headers={'x-api-key': NOWPAYMENTS_API_KEY}
+    ).json()
+    pay_address = detail_resp.get('payment_address')
+    pay_amount = detail_resp.get('payment_amount')
     return pay_amount, pay_address, create_resp
 
 # === TELEGRAM HELPERS ===
