@@ -10,7 +10,8 @@ from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL
 app = Flask(__name__)
 DB_PATH = 'database.sqlite'
 FILE_DIR = 'files'
-deposit_requests = {}  # Track custom deposit state
+# Track custom deposit state
+deposit_requests = {}
 
 # === DATABASE SETUP ===
 def init_db():
@@ -19,7 +20,7 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, balance REAL DEFAULT 0.0)')
     c.execute('CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, filename TEXT, price REAL)')
     c.execute('CREATE TABLE IF NOT EXISTS sales (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)')
-    c.execute('CREATE TABLE IF NOT EXISTS deposits (order_id TEXT PRIMARY KEY, user_id INTEGER, pay_address TEXT, pay_amount REAL, status TEXT DEFAULT "pending", timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)')
+    c.execute('CREATE TABLE IF NOT EXISTS deposits (order_id TEXT PRIMARY KEY, user_id INTEGER, invoice_url TEXT, status TEXT DEFAULT "pending", timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)')
     c.execute('CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, update_id TEXT, user_id INTEGER, raw_data TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)')
     conn.commit()
     conn.close()
@@ -57,7 +58,6 @@ def get_products():
 
 # === NOWPAYMENTS HELPERS ===
 def create_invoice(usd_amount, order_id):
-    # Create invoice
     create_resp = requests.post(
         'https://api.nowpayments.io/v1/invoice',
         json={
@@ -70,17 +70,9 @@ def create_invoice(usd_amount, order_id):
         },
         headers={'x-api-key': NOWPAYMENTS_API_KEY}
     ).json()
-    invoice_id = create_resp.get('id')
-    if not invoice_id:
-        return None, None, create_resp
-    # Fetch payment details directly
-    detail_resp = requests.get(
-        f'https://api.nowpayments.io/v1/invoice/{invoice_id}/payment',
-        headers={'x-api-key': NOWPAYMENTS_API_KEY}
-    ).json()
-    pay_address = detail_resp.get('payment_address')
-    pay_amount = detail_resp.get('payment_amount')
-    return pay_amount, pay_address, create_resp
+    # Return full invoice_url for external checkout
+    invoice_url = create_resp.get('invoice_url')
+    return invoice_url, create_resp
 
 # === TELEGRAM HELPERS ===
 def send_message(chat_id, text, buttons=None):
@@ -108,7 +100,6 @@ def index():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # Verify secret
     if request.args.get('secret') != WEBHOOK_SECRET:
         return abort(403)
     data = request.get_json(force=True) or {}
@@ -128,7 +119,7 @@ def webhook():
     conn.commit()
     conn.close()
 
-    # Handle IPN callbacks first
+    # Handle IPN callbacks (confirmed/partially_paid)
     status = data.get('payment_status')
     if status in ('confirmed', 'partially_paid'):
         uid = int(str(data.get('order_id')).split('_')[0])
@@ -150,9 +141,10 @@ def webhook():
                     send_message(chat_id, 'Minimum $10 required.')
                 else:
                     order_id = f'{chat_id}_{int(time.time())}'
-                    pay_amount, pay_address, _ = create_invoice(usd, order_id)
-                    if pay_amount and pay_address:
-                        send_message(chat_id, f'Send exactly {pay_amount} BTC to:\n{pay_address}')
+                    invoice_url, _ = create_invoice(usd, order_id)
+                    if invoice_url:
+                        # Send external invoice link
+                        send_message(chat_id, f'Complete payment here:\n{invoice_url}')
                     else:
                         send_message(chat_id, 'Error creating invoice.')
                     deposit_requests.pop(chat_id, None)
@@ -176,7 +168,6 @@ def webhook():
         chat_id = cb['from']['id']
         action = cb['data']
         answer_callback(cb['id'])
-        # Deposit menu
         if action == 'deposit':
             opts = [10, 15, 25, 50]
             buttons = [[{'text': f'${amt}', 'callback_data': f'deposit_{amt}'}] for amt in opts]
@@ -190,9 +181,9 @@ def webhook():
             else:
                 usd = float(part)
                 order_id = f'{chat_id}_{int(time.time())}'
-                pay_amount, pay_address, _ = create_invoice(usd, order_id)
-                if pay_amount and pay_address:
-                    send_message(chat_id, f'Send exactly {pay_amount} BTC to:\n{pay_address}')
+                invoice_url, _ = create_invoice(usd, order_id)
+                if invoice_url:
+                    send_message(chat_id, f'Complete payment here:\n{invoice_url}')
                 else:
                     send_message(chat_id, 'Error creating invoice.')
         elif action == 'balance':
