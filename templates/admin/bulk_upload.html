@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Bulk Upload Products</title></head>
+  <body>
+    <h1>Bulk Upload Products</h1>
+    {% if message %}
+      <p><em>{{ message }}</em></p>
+    {% endif %}
+    <form method="post">
+      <p>Enter one product per line, formatted as:</p>
+      <pre>Name|filename.ext|price</pre>
+      <textarea name="bulk_text" rows="10" cols="50"></textarea><br>
+      <button type="submit">Import</button>
+    </form>
+    <a href="{{ url_for('admin.index') }}">Back to Admin</a>
+  </body>
+</html>

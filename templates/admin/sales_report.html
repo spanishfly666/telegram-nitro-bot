@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Sales Report</title></head>
+  <body>
+    <h1>Sales Report</h1>
+    <ul>
+      {% for label, count in stats.items() %}
+        <li><strong>{{ label }}:</strong> {{ count }} sales</li>
+      {% endfor %}
+    </ul>
+    <a href="{{ url_for('admin.index') }}">Back to Admin</a>
+  </body>
+</html>
