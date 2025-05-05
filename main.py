@@ -17,7 +17,6 @@ deposit_requests = {}
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    # user, product, sales, deposit tables
     c.execute(
         '''CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
@@ -50,7 +49,6 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )'''
     )
-    # conversation log table
     c.execute(
         '''CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,6 +60,10 @@ def init_db():
     )
     conn.commit()
     conn.close()
+
+# Ensure file directory and DB exist at startup
+os.makedirs(FILE_DIR, exist_ok=True)
+init_db()
 
 # === UTILITIES ===
 def get_balance(user_id):
@@ -126,13 +128,13 @@ def webhook():
 
     data = request.get_json(force=True) or {}
     update_id = data.get('update_id')
-    # determine user_id for logging
+    # Determine user_id for logging
     user_part = None
     if 'message' in data and data['message']:
         user_part = data['message']['from']['id']
     elif 'callback_query' in data and data['callback_query']:
         user_part = data['callback_query']['from']['id']
-    # log raw conversation
+    # Log raw conversation
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
@@ -143,7 +145,6 @@ def webhook():
     conn.close()
     print("[DEBUG] Logged message update_id=", update_id)
 
-    # proceed with existing logic...
     # Telegram message handling
     if 'message' in data and data['message']:
         msg = data['message']
@@ -198,14 +199,29 @@ def webhook():
                 buttons.append([{"text": "🔧 Admin", "callback_data": "admin"}])
             send_message(chat_id, "Welcome! Choose an option:", buttons)
 
-    # Callback queries handling remains unchanged...
-    # ...
+    # Callback queries
+    if 'callback_query' in data and data['callback_query']:
+        cb = data['callback_query']
+        chat_id = cb['from']['id']
+        answer_callback(cb['id'])
+        action = cb['data']
+        print(f"[DEBUG] Callback action={action} from {chat_id}")
 
-    return '', 200
+        # Deposit menu
+        if action == 'deposit':
+            buttons = [
+                [{"text": "$10", "callback_data": "deposit_10"}],
+                [{"text": "$15", "callback_data": "deposit_15"}],
+                [{"text": "$25", "callback_data": "deposit_25"}],
+                [{"text": "$50", "callback_data": "deposit_50"}],
+                [{"text": "Custom", "callback_data": "deposit_custom"}]
+            ]
+            send_message(chat_id, "Select deposit amount (USD):", buttons)
 
-# === STARTUP ===
-if __name__ == '__main__':
-    os.makedirs(FILE_DIR, exist_ok=True)
-    init_db()
-    print("[DEBUG] Starting Flask app...")
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+        # Predefined deposit selections
+        elif action.startswith('deposit_'):
+            amount_part = action.split('_')[1]
+            if amount_part == 'custom':
+                deposit_requests[chat_id] = 'custom'
+                send_message(chat_id, "Enter custom USD amount (minimum                               
+
