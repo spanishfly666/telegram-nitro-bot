@@ -42,7 +42,16 @@ class Deposit(db.Model):
     status = db.Column(db.String(32), default='pending')
     timestamp = db.Column(db.DateTime, default=db.func.now())
 
+# Message log model
+class Message(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    update_id = db.Column(db.String(64), unique=True)
+    user_id = db.Column(db.Integer)
+    raw_data = db.Column(db.Text)
+
 # Create tables
+with app.app_context():
+    db.create_all()
 with app.app_context():
     db.create_all()
 
