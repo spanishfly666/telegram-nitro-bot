@@ -88,6 +88,8 @@ def webhook():
     except Exception:
         data = {}
 
+print("[DEBUG] Incoming webhook data:", data)
+
     # Handle Telegram update
     if 'message' in data and data['message']:
         msg = data['message']
