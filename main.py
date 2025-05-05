@@ -143,11 +143,19 @@ def webhook():
     if request.args.get("secret") != WEBHOOK_SECRET:
         return abort(403)
 
-    data = request.json
+    data = request.get_json()
+
+    # Handle Telegram updates
+    if "message" in data or "callback_query" in data:
+        update = Update.de_json(data, application.bot)
+        application.update_queue.put(update)
+
+    # Handle NOWPayments (if any additional logic applies)
     if data.get("payment_status") == "confirmed":
         user_id = int(data.get("order_id"))
         amount = float(data.get("pay_amount", 0))
         update_balance(user_id, amount)
+
     return '', 200
 
 # === STARTUP ===
