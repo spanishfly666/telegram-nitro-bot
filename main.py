@@ -1,6 +1,7 @@
 # main.py
 import os
 import sqlite3
+import asyncio
 from flask import Flask, request, abort
 import requests
 from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
@@ -104,14 +105,13 @@ def webhook():
             ]
             if chat_id == ADMIN_ID:
                 buttons.append([InlineKeyboardButton("🔧 Admin", callback_data="admin")])
-            # Debug before sending
             print(f"[DEBUG] Sending /start menu to chat_id={chat_id}")
             try:
-                bot.send_message(
+                asyncio.run(bot.send_message(
                     chat_id=chat_id,
                     text="Welcome! Choose an option:",
                     reply_markup=InlineKeyboardMarkup(buttons)
-                )
+                ))
                 print(f"[DEBUG] Successfully sent /start menu to {chat_id}")
             except Exception as e:
                 print(f"[ERROR] Failed to send /start menu: {e}")
@@ -122,16 +122,33 @@ def webhook():
         chat_id = cb['from']['id']
         cb_id = cb['id']
         action = cb['data']
-        # Debug callback reception
         print(f"[DEBUG] Callback '{action}' from chat {chat_id}")
         try:
-            bot.answer_callback_query(cb_id)
+            asyncio.run(bot.answer_callback_query(cb_id))
         except Exception as e:
             print(f"[ERROR] answer_callback_query failed: {e}")
 
         if action == 'deposit':
-            # ... deposit logic remains same, optionally add debug prints
-            pass  # placeholder
+            # Example deposit logic (can expand with debug prints)
+            try:
+                invoice = requests.post(
+                    "https://api.nowpayments.io/v1/invoice",
+                    json={
+                        "price_amount": 10,
+                        "price_currency": "usd",
+                        "pay_currency": "btc",
+                        "order_id": str(chat_id),
+                        "ipn_callback_url": f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}",
+                        "is_fixed_rate": True
+                    },
+                    headers={"x-api-key": NOWPAYMENTS_API_KEY}
+                ).json()
+                address = invoice.get('pay_address')
+                amount = invoice.get('pay_amount')
+                asyncio.run(bot.send_message(chat_id=chat_id, text=f"Send {amount} BTC to {address}"))
+                print(f"[DEBUG] Deposit address sent to {chat_id}")
+            except Exception as e:
+                print(f"[ERROR] Deposit handling failed: {e}")
 
     # Handle NOWPayments webhook
     if data.get('payment_status') == 'confirmed':
