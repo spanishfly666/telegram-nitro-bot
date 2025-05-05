@@ -10,58 +10,21 @@ from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL
 app = Flask(__name__)
 DB_PATH = 'database.sqlite'
 FILE_DIR = 'files'
-# In-memory state for custom deposit flow
+# Track custom deposit state
 deposit_requests = {}
 
 # === DATABASE SETUP ===
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute(
-        '''CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            balance REAL DEFAULT 0.0
-        )'''
-    )
-    c.execute(
-        '''CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            filename TEXT,
-            price REAL
-        )'''
-    )
-    c.execute(
-        '''CREATE TABLE IF NOT EXISTS sales (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            product_id INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )'''
-    )
-    c.execute(
-        '''CREATE TABLE IF NOT EXISTS deposits (
-            order_id TEXT PRIMARY KEY,
-            user_id INTEGER,
-            pay_address TEXT,
-            pay_amount REAL,
-            status TEXT DEFAULT 'pending',
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )'''
-    )
-    c.execute(
-        '''CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            update_id TEXT,
-            user_id INTEGER,
-            raw_data TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )'''
-    )
+    c.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, balance REAL DEFAULT 0.0)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, filename TEXT, price REAL)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS sales (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, product_id INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS deposits (order_id TEXT PRIMARY KEY, user_id INTEGER, pay_address TEXT, pay_amount REAL, status TEXT DEFAULT 'pending', timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, update_id TEXT, user_id INTEGER, raw_data TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
     conn.close()
 
-# Ensure data dir and DB
 os.makedirs(FILE_DIR, exist_ok=True)
 init_db()
 
@@ -75,7 +38,6 @@ def get_balance(user_id):
     conn.close()
     return bal
 
-
 def update_balance(user_id, amount):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -84,19 +46,18 @@ def update_balance(user_id, amount):
     conn.commit()
     conn.close()
 
-
 def get_products():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT id, name, price FROM products")
-    products = c.fetchall()
+    prods = c.fetchall()
     conn.close()
-    return products
+    return prods
 
 # === NOWPAYMENTS HELPERS ===
 def create_invoice(usd_amount, order_id):
-    # Create invoice
-    resp = requests.post(
+    # POST to create invoice
+    create_resp = requests.post(
         "https://api.nowpayments.io/v1/invoice",
         json={
             "price_amount": usd_amount,
@@ -108,17 +69,17 @@ def create_invoice(usd_amount, order_id):
         },
         headers={"x-api-key": NOWPAYMENTS_API_KEY}
     ).json()
-    invoice_id = resp.get('id')
-    # Fetch payment details
-    if invoice_id:
-        details = requests.get(
-            f"https://api.nowpayments.io/v1/invoice/{invoice_id}",
-            headers={"x-api-key": NOWPAYMENTS_API_KEY}
-        ).json()
-        pay_address = details.get('payment_address') or details.get('pay_address')
-        pay_amount = details.get('payment_amount') or details.get('pay_amount')
-        return pay_amount, pay_address, resp
-    return None, None, resp
+    invoice_id = create_resp.get('id')
+    if not invoice_id:
+        return None, None, create_resp
+    # GET details for payment address and amount
+    detail_resp = requests.get(
+        f"https://api.nowpayments.io/v1/invoice/{invoice_id}",
+        headers={"x-api-key": NOWPAYMENTS_API_KEY}
+    ).json()
+    pay_address = detail_resp.get('payment_address') or detail_resp.get('pay_address')
+    pay_amount = detail_resp.get('payment_amount') or detail_resp.get('pay_amount')
+    return pay_amount, pay_address, create_resp
 
 # === TELEGRAM HELPERS ===
 def send_message(chat_id, text, buttons=None):
@@ -128,11 +89,9 @@ def send_message(chat_id, text, buttons=None):
         payload["reply_markup"] = {"inline_keyboard": buttons}
     requests.post(url, json=payload)
 
-
 def answer_callback(callback_id):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/answerCallbackQuery"
     requests.post(url, json={"callback_query_id": callback_id})
-
 
 def send_document(chat_id, filename):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
@@ -151,28 +110,27 @@ def webhook():
     if request.args.get('secret') != WEBHOOK_SECRET:
         return abort(403)
     data = request.get_json(force=True) or {}
-
-    # Log conversation
+    # Log raw update
     update_id = data.get('update_id')
-    user_id = None
+    uid = None
     if 'message' in data:
-        user_id = data['message']['from']['id']
+        uid = data['message']['from']['id']
     elif 'callback_query' in data:
-        user_id = data['callback_query']['from']['id']
+        uid = data['callback_query']['from']['id']
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
         "INSERT OR IGNORE INTO messages (update_id, user_id, raw_data) VALUES (?, ?, ?)",
-        (str(update_id), user_id, json.dumps(data))
+        (str(update_id), uid, json.dumps(data))
     )
     conn.commit()
     conn.close()
 
-    # Handle text messages
+    # Handle text input (custom deposit)
     if 'message' in data:
         msg = data['message']
         chat_id = msg['from']['id']
-        text = msg.get('text', '').strip()
+        text = msg.get('text','').strip()
         if deposit_requests.get(chat_id) == 'custom':
             try:
                 usd = float(text)
@@ -180,23 +138,30 @@ def webhook():
                     send_message(chat_id, "Minimum $10 required.")
                 else:
                     order_id = f"{chat_id}_{int(time.time())}"
-                    pay_amount, pay_address, inv_resp = create_invoice(usd, order_id)
-                    if pay_address and pay_amount:
+                    pay_amount, pay_address, resp = create_invoice(usd, order_id)
+                    if pay_amount and pay_address:
                         send_message(chat_id, f"Send exactly {pay_amount} BTC to:\n{pay_address}")
                     else:
-                        send_message(chat_id, f"Invoice error: {inv_resp}")
-                    deposit_requests.pop(chat_id, None)
+                        send_message(chat_id, f"Invoice error: {resp}")
+                    deposit_requests.pop(chat_id,None)
             except ValueError:
                 send_message(chat_id, "Enter a valid number.")
-            return '', 200
+                # Handle NowPayments IPN callbacks (confirmed or partially_paid)
+    if data.get('payment_status') in ('confirmed', 'partially_paid'):
+        uid = int(str(data.get('order_id')).split('_')[0])
+        amount = float(data.get('pay_amount') or data.get('payment_amount') or 0)
+        update_balance(uid, amount)
+        print(f"[DEBUG] Credited {amount} BTC to user {uid} (status={data.get('payment_status')})")
+    return '',200
+        # /start
         if text == '/start':
             buttons = [
-                [{"text": "💰 Deposit", "callback_data": "deposit"}],
-                [{"text": "📥 Buy Product", "callback_data": "buy_categories"}],
-                [{"text": "📊 Check Balance", "callback_data": "balance"}]
+                [{"text":"💰 Deposit","callback_data":"deposit"}],
+                [{"text":"📥 Buy Product","callback_data":"buy_categories"}],
+                [{"text":"📊 Check Balance","callback_data":"balance"}]
             ]
             if chat_id == ADMIN_ID:
-                buttons.append([{"text": "🔧 Admin", "callback_data": "admin"}])
+                buttons.append([{"text":"🔧 Admin","callback_data":"admin"}])
             send_message(chat_id, "Welcome! Choose an option:", buttons)
 
     # Handle callbacks
@@ -205,25 +170,25 @@ def webhook():
         chat_id = cb['from']['id']
         action = cb['data']
         answer_callback(cb['id'])
-
+        # Deposit menu
         if action == 'deposit':
-            opts = [10, 15, 25, 50]
-            buttons = [[{"text": f"${amt}", "callback_data": f"deposit_{amt}"}] for amt in opts]
-            buttons.append([{"text": "Custom", "callback_data": "deposit_custom"}])
+            opts = [10,15,25,50]
+            buttons = [[{"text":f"${amt}","callback_data":f"deposit_{amt}"}] for amt in opts]
+            buttons.append([{"text":"Custom","callback_data":"deposit_custom"}])
             send_message(chat_id, "Select deposit amount (USD):", buttons)
         elif action.startswith('deposit_'):
             part = action.split('_',1)[1]
             if part == 'custom':
                 deposit_requests[chat_id] = 'custom'
-                send_message(chat_id, "Enter custom USD amount (minimum $10):")
+                send_message(chat_id, "Enter custom USD amount (>=10):")
             else:
                 usd = float(part)
                 order_id = f"{chat_id}_{int(time.time())}"
-                pay_amount, pay_address, inv_resp = create_invoice(usd, order_id)
-                if pay_address and pay_amount:
+                pay_amount, pay_address, resp = create_invoice(usd, order_id)
+                if pay_amount and pay_address:
                     send_message(chat_id, f"Send exactly {pay_amount} BTC to:\n{pay_address}")
                 else:
-                    send_message(chat_id, f"Invoice error: {inv_resp}")
+                    send_message(chat_id, f"Invoice error: {resp}")
         elif action == 'balance':
             bal = get_balance(chat_id)
             send_message(chat_id, f"Your balance: {bal:.8f} BTC")
@@ -241,13 +206,13 @@ def webhook():
             bal = get_balance(chat_id)
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute("SELECT name,filename,price FROM products WHERE id=?", (pid,))
+            c.execute("SELECT name,filename,price FROM products WHERE id=?",(pid,))
             row = c.fetchone()
             conn.close()
             if not row:
                 send_message(chat_id, "Product not found.")
             else:
-                name, fn, pr = row
+                name,fn,pr = row
                 if bal < pr:
                     send_message(chat_id, "Insufficient balance.")
                 else:
@@ -255,9 +220,8 @@ def webhook():
                     send_document(chat_id, fn)
                     send_message(chat_id, f"You bought {name}!")
 
-    return '', 200
+    return '',200
 
-# === STARTUP ===
-if __name__ == '__main__':
+if __name__=='__main__':
     print("[DEBUG] Starting Flask app...")
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT',5000)))
