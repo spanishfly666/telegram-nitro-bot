@@ -1,14 +1,15 @@
 # main.py
 import os
 import sqlite3
-import json
 from flask import Flask, request, abort
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import requests
 from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL, ADMIN_ID
 
+# Initialize Flask for payment webhooks
 app = Flask(__name__)
+
 DB_PATH = 'database.sqlite'
 FILE_DIR = 'files'
 
@@ -131,33 +132,25 @@ async def handle_deposit(query, user_id):
 
     if pay_address:
         await query.edit_message_text(
-            f"Send exactly {pay_amount} BTC to this address:\n\n`{pay_address}`",
+            f"Send exactly {pay_amount} BTC to this address:
+
+`{pay_address}`",
             parse_mode='Markdown'
         )
     else:
         await query.edit_message_text("Failed to create payment. Try again later.")
 
-# === FLASK WEBHOOK ===
+# === FLASK WEBHOOK FOR PAYMENTS ===
 @app.route("/webhook", methods=["POST"])
-def webhook():
+def payment_webhook():
     if request.args.get("secret") != WEBHOOK_SECRET:
         return abort(403)
-
     data = request.get_json()
-
-    # Process Telegram webhook updates
-    if "message" in data or "callback_query" in data:
-        update = Update.de_json(data, application.bot)
-        application.update_queue.put(update)
-
-    # Optional: process NOWPayments webhook here too
     if data.get("payment_status") == "confirmed":
         user_id = int(data.get("order_id"))
         amount = float(data.get("pay_amount", 0))
         update_balance(user_id, amount)
-
     return '', 200
-
 
 # === STARTUP ===
 if __name__ == '__main__':
@@ -168,5 +161,6 @@ if __name__ == '__main__':
     application.run_webhook(
         listen="0.0.0.0",
         port=int(os.environ.get("PORT", 5000)),
+        url_path="webhook",
         webhook_url=f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}"
     )
