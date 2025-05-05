@@ -135,11 +135,17 @@ def webhook():
             try:
                 usd = float(text)
                 order_id = f'{chat_id}_{int(time.time())}'
-                invoice_url, _ = create_invoice(usd, order_id)
-                send_message(chat_id, f"Complete payment here:\n{invoice_url}")
+                invoice_url, resp = create_invoice(usd, order_id)
+                if invoice_url:
+                    # Corrected multi-line string with newline escape
+                    send_message(chat_id, f"Complete payment here:\n{invoice_url}")
+                else:
+                    err_msg = resp.get('error') or resp.get('message') or str(resp)
+                    send_message(chat_id, f"Error creating invoice: {err_msg}")
+                deposit_requests.pop(chat_id, None)
             except ValueError:
                 send_message(chat_id, 'Enter a valid number.')
-            deposit_requests.pop(chat_id, None)
+                deposit_requests.pop(chat_id, None)
             return '', 200
         if text == '/start':
             buttons = [
