@@ -18,28 +18,28 @@ FILE_DIR = 'files'
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
+    c.execute(
+        '''CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
             balance REAL DEFAULT 0.0
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS products (
+        )'''
+    )
+    c.execute(
+        '''CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             filename TEXT,
             price REAL
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS sales (
+        )'''
+    )
+    c.execute(
+        '''CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             product_id INTEGER,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+        )'''
+    )
     conn.commit()
     conn.close()
 
@@ -53,7 +53,6 @@ def get_balance(user_id):
     conn.close()
     return balance
 
-
 def update_balance(user_id, amount):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -61,7 +60,6 @@ def update_balance(user_id, amount):
     c.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (amount, user_id))
     conn.commit()
     conn.close()
-
 
 def get_products():
     conn = sqlite3.connect(DB_PATH)
@@ -88,9 +86,10 @@ def webhook():
     except Exception:
         data = {}
 
-print("[DEBUG] Incoming webhook data:", data)
+    # Debug
+    print("[DEBUG] Incoming webhook data:", data)
 
-    # Handle Telegram update
+    # Handle Telegram message
     if 'message' in data and data['message']:
         msg = data['message']
         chat_id = msg['from']['id']
@@ -103,7 +102,11 @@ print("[DEBUG] Incoming webhook data:", data)
             ]
             if chat_id == ADMIN_ID:
                 buttons.append([InlineKeyboardButton("🔧 Admin", callback_data="admin")])
-            bot.send_message(chat_id=chat_id, text="Welcome! Choose an option:", reply_markup=InlineKeyboardMarkup(buttons))
+            bot.send_message(
+                chat_id=chat_id,
+                text="Welcome! Choose an option:",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
 
     # Handle Telegram callback query
     if 'callback_query' in data and data['callback_query']:
@@ -113,7 +116,6 @@ print("[DEBUG] Incoming webhook data:", data)
         action = cb['data']
         bot.answer_callback_query(cb_id)
 
-        # Deposit
         if action == 'deposit':
             payment = requests.post(
                 "https://api.nowpayments.io/v1/invoice",
@@ -134,21 +136,21 @@ print("[DEBUG] Incoming webhook data:", data)
             else:
                 bot.send_message(chat_id=chat_id, text="Failed to create payment. Try again later.")
 
-        # Check balance
         elif action == 'balance':
             bal = get_balance(chat_id)
             bot.send_message(chat_id=chat_id, text=f"Your BTC balance: {bal:.8f}")
 
-        # Show products
         elif action == 'buy':
             products = get_products()
             if products:
-                buttons = [[InlineKeyboardButton(f"{name} - {price:.8f} BTC", callback_data=f"buy_{pid}")] for pid, name, price in products]
+                buttons = [
+                    [InlineKeyboardButton(f"{name} - {price:.8f} BTC", callback_data=f"buy_{pid}")]
+                    for pid, name, price in products
+                ]
                 bot.send_message(chat_id=chat_id, text="Available products:", reply_markup=InlineKeyboardMarkup(buttons))
             else:
                 bot.send_message(chat_id=chat_id, text="No products available.")
 
-        # Handle purchase
         elif action.startswith('buy_'):
             pid = int(action.split('_')[1])
             balance = get_balance(chat_id)
@@ -185,5 +187,4 @@ print("[DEBUG] Incoming webhook data:", data)
 if __name__ == '__main__':
     os.makedirs(FILE_DIR, exist_ok=True)
     init_db()
-    # Start Flask server for both Telegram and payments
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
