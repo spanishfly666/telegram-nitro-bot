@@ -1,17 +1,11 @@
 # main.py
 import os
 import sqlite3
-import asyncio
 from flask import Flask, request, abort
 import requests
-from telegram import Bot, InlineKeyboardMarkup, InlineKeyboardButton
-
 from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL, ADMIN_ID
 
-# Initialize Flask and Telegram Bot
 app = Flask(__name__)
-bot = Bot(token=TELEGRAM_TOKEN)
-
 DB_PATH = 'database.sqlite'
 FILE_DIR = 'files'
 
@@ -72,24 +66,40 @@ def get_products():
     conn.close()
     return products
 
+# === TELEGRAM API HELPERS ===
+def send_message(chat_id, text, buttons=None):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text}
+    if buttons:
+        payload["reply_markup"] = {"inline_keyboard": buttons}
+    requests.post(url, json=payload)
+
+
+def answer_callback(callback_id):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/answerCallbackQuery"
+    requests.post(url, json={"callback_query_id": callback_id})
+
+
+def send_document(chat_id, filename):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
+    file_path = os.path.join(FILE_DIR, filename)
+    with open(file_path, 'rb') as doc:
+        files = {"document": doc}
+        data = {"chat_id": chat_id}
+        requests.post(url, files=files, data=data)
+
 # === ROUTES ===
 @app.route('/', methods=['GET'])
 def index():
     return 'OK', 200
 
-@app.route('/webhook', methods=['GET', 'POST'])
+@app.route('/webhook', methods=['POST'])
 def webhook():
     # Verify secret
     if request.args.get('secret') != WEBHOOK_SECRET:
         return abort(403)
 
-    # Parse JSON safely
-    try:
-        data = request.get_json(force=True)
-    except Exception:
-        data = {}
-
-    # Debug incoming data
+    data = request.get_json(force=True) or {}
     print("[DEBUG] Incoming webhook data:", data)
 
     # Handle Telegram message
@@ -99,22 +109,14 @@ def webhook():
         text = msg.get('text', '')
         if text == '/start':
             buttons = [
-                [InlineKeyboardButton("💰 Deposit", callback_data="deposit")],
-                [InlineKeyboardButton("📥 Buy Product", callback_data="buy")],
-                [InlineKeyboardButton("📊 Check Balance", callback_data="balance")]
+                [{"text": "💰 Deposit", "callback_data": "deposit"}],
+                [{"text": "📥 Buy Product", "callback_data": "buy"}],
+                [{"text": "📊 Check Balance", "callback_data": "balance"}]
             ]
             if chat_id == ADMIN_ID:
-                buttons.append([InlineKeyboardButton("🔧 Admin", callback_data="admin")])
-            print(f"[DEBUG] Sending /start menu to chat_id={chat_id}")
-            try:
-                asyncio.run(bot.send_message(
-                    chat_id=chat_id,
-                    text="Welcome! Choose an option:",
-                    reply_markup=InlineKeyboardMarkup(buttons)
-                ))
-                print(f"[DEBUG] Successfully sent /start menu to {chat_id}")
-            except Exception as e:
-                print(f"[ERROR] Failed to send /start menu: {e}")
+                buttons.append([{"text": "🔧 Admin", "callback_data": "admin"}])
+            print(f"[DEBUG] Sending /start menu to {chat_id}")
+            send_message(chat_id, "Welcome! Choose an option:", buttons)
 
     # Handle Telegram callback query
     if 'callback_query' in data and data['callback_query']:
@@ -123,13 +125,9 @@ def webhook():
         cb_id = cb['id']
         action = cb['data']
         print(f"[DEBUG] Callback '{action}' from chat {chat_id}")
-        try:
-            asyncio.run(bot.answer_callback_query(cb_id))
-        except Exception as e:
-            print(f"[ERROR] answer_callback_query failed: {e}")
+        answer_callback(cb_id)
 
         if action == 'deposit':
-            # Example deposit logic (can expand with debug prints)
             try:
                 invoice = requests.post(
                     "https://api.nowpayments.io/v1/invoice",
@@ -145,10 +143,49 @@ def webhook():
                 ).json()
                 address = invoice.get('pay_address')
                 amount = invoice.get('pay_amount')
-                asyncio.run(bot.send_message(chat_id=chat_id, text=f"Send {amount} BTC to {address}"))
-                print(f"[DEBUG] Deposit address sent to {chat_id}")
+                print(f"[DEBUG] Sending deposit info to {chat_id}")
+                send_message(chat_id, f"Send exactly {amount} BTC to this address:\n{address}")
             except Exception as e:
                 print(f"[ERROR] Deposit handling failed: {e}")
+
+        elif action == 'balance':
+            bal = get_balance(chat_id)
+            send_message(chat_id, f"Your BTC balance: {bal:.8f}")
+
+        elif action == 'buy':
+            products = get_products()
+            if products:
+                buttons = [
+                    [{"text": f"{name} - {price:.8f} BTC", "callback_data": f"buy_{pid}"}]
+                    for pid, name, price in products
+                ]
+                send_message(chat_id, "Available products:", buttons)
+            else:
+                send_message(chat_id, "No products available.")
+
+        elif action.startswith('buy_'):
+            pid = int(action.split('_')[1])
+            balance = get_balance(chat_id)
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("SELECT name, filename, price FROM products WHERE id = ?", (pid,))
+            row = c.fetchone()
+            conn.close()
+            if not row:
+                send_message(chat_id, "Product not found.")
+            else:
+                name, filename, price = row
+                if balance < price:
+                    send_message(chat_id, "Insufficient balance.")
+                else:
+                    update_balance(chat_id, -price)
+                    conn = sqlite3.connect(DB_PATH)
+                    c = conn.cursor()
+                    c.execute("INSERT INTO sales (user_id, product_id) VALUES (?, ?)", (chat_id, pid))
+                    conn.commit()
+                    conn.close()
+                    send_document(chat_id, filename)
+                    send_message(chat_id, f"You bought {name}!")
 
     # Handle NOWPayments webhook
     if data.get('payment_status') == 'confirmed':
