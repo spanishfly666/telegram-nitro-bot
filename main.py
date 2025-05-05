@@ -38,6 +38,7 @@ def get_balance(user_id):
     conn.close()
     return bal
 
+
 def update_balance(user_id, amount):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -45,6 +46,7 @@ def update_balance(user_id, amount):
     c.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, user_id))
     conn.commit()
     conn.close()
+
 
 def get_products():
     conn = sqlite3.connect(DB_PATH)
@@ -77,11 +79,13 @@ def send_message(chat_id, text, buttons=None):
         payload['reply_markup'] = {'inline_keyboard': buttons}
     requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage', json=payload)
 
+
 def answer_callback(callback_id):
     requests.post(
         f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/answerCallbackQuery',
         json={'callback_query_id': callback_id}
     )
+
 
 def send_document(chat_id, filename):
     with open(os.path.join(FILE_DIR, filename), 'rb') as doc:
@@ -100,7 +104,6 @@ def webhook():
         return abort(403)
     data = request.get_json(force=True) or {}
     update_id = data.get('update_id')
-    # Log raw update
     uid = None
     if 'message' in data:
         uid = data['message']['from']['id']
@@ -115,15 +118,13 @@ def webhook():
     conn.commit()
     conn.close()
 
-    # IPN callbacks
-    status = data.get('payment_status')
+    # IPN callbacks for both confirmed and partially_paid\    status = data.get('payment_status')
     if status in ('confirmed', 'partially_paid'):
         uid = int(str(data.get('order_id')).split('_')[0])
         amt = float(data.get('pay_amount') or data.get('payment_amount') or 0)
         update_balance(uid, amt)
         return '', 200
 
-    # Handle text messages (amount entry)
     if 'message' in data:
         msg = data['message']
         chat_id = msg['from']['id']
@@ -133,8 +134,7 @@ def webhook():
                 usd = float(text)
                 order_id = f'{chat_id}_{int(time.time())}'
                 invoice_url, _ = create_invoice(usd, order_id)
-                send_message(chat_id, f'Complete payment here:
-{invoice_url}')
+                send_message(chat_id, f"Complete payment here:\n{invoice_url}")
             except ValueError:
                 send_message(chat_id, 'Enter a valid number.')
             deposit_requests.pop(chat_id, None)
@@ -149,7 +149,6 @@ def webhook():
                 buttons.append([{'text': '🔧 Admin', 'callback_data': 'admin'}])
             send_message(chat_id, 'Welcome! Choose an option:', buttons)
 
-    # Handle callback queries
     if 'callback_query' in data:
         cb = data['callback_query']
         chat_id = cb['from']['id']
@@ -163,7 +162,7 @@ def webhook():
             send_message(chat_id, 'Choose deposit method:', buttons)
         elif action == 'deposit_btc':
             deposit_requests[chat_id] = 'await_amount'
-            send_message(chat_id, 'Enter USD amount to deposit (min $10):')
+            send_message(chat_id, 'Enter USD amount to deposit:')
         elif action == 'deposit_manual':
             send_message(chat_id, 'Please contact the admin @goatflow517 for manual deposits.')
         elif action == 'balance':
