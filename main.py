@@ -18,11 +18,21 @@ db = SQLAlchemy(app)
 
 # --- Models ---
 class User(db.Model):
+    __tablename__ = 'users'  # matches raw SQL
+    id = db.Column(db.Integer, primary_key=True)
+    balance = db.Column(db.Float, default=0.0)
+    role = db.Column(db.String(10), default='user')  # roles: owner, admin, seller, user
     id = db.Column(db.Integer, primary_key=True)
     balance = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(10), default='user')  # roles: owner, admin, seller, user
 
 class Product(db.Model):
+    __tablename__ = 'products'  # matches raw SQL
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128))
+    filename = db.Column(db.String(256))
+    price = db.Column(db.Float)
+    seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128))
     filename = db.Column(db.String(256))
