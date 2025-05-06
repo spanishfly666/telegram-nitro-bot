@@ -51,10 +51,13 @@ class Message(db.Model):
 
 # Create tables
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception:
+        pass
 
 # --- Admin Interface ---
-admin = Admin(app, name='Nitro Panel', template_mode='bootstrap4')(app, name='Nitro Panel', template_mode='bootstrap4')
+admin = Admin(app, name='Nitro Panel', template_mode='bootstrap4')
 
 class UserAdmin(ModelView):
     column_list = ('id', 'balance', 'role')
