@@ -1,4 +1,3 @@
-# main.py
 import os
 import sqlite3
 import time
@@ -18,41 +17,34 @@ db = SQLAlchemy(app)
 
 # --- Models ---
 class User(db.Model):
-    __tablename__ = 'users'  # matches raw SQL
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     balance = db.Column(db.Float, default=0.0)
-    role = db.Column(db.String(10), default='user')  # roles: owner, admin, seller, user
-    id = db.Column(db.Integer, primary_key=True)
-    balance = db.Column(db.Float, default=0.0)
-    role = db.Column(db.String(10), default='user')  # roles: owner, admin, seller, user
+    role = db.Column(db.String(10), default='user')  # owner, admin, seller, user
 
 class Product(db.Model):
-    __tablename__ = 'products'  # matches raw SQL
+    __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128))
     filename = db.Column(db.String(256))
     price = db.Column(db.Float)
     seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128))
-    filename = db.Column(db.String(256))
-    price = db.Column(db.Float)
-    seller_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
 class Sale(db.Model):
+    __tablename__ = 'sales'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer)
     product_id = db.Column(db.Integer)
     timestamp = db.Column(db.DateTime, default=db.func.now())
 
 class Deposit(db.Model):
+    __tablename__ = 'deposits'
     order_id = db.Column(db.String(64), primary_key=True)
     user_id = db.Column(db.Integer)
     invoice_url = db.Column(db.String(512))
     status = db.Column(db.String(32), default='pending')
     timestamp = db.Column(db.DateTime, default=db.func.now())
 
-# Message log model
 class Message(db.Model):
     __tablename__ = 'messages'
     id = db.Column(db.Integer, primary_key=True)
@@ -60,7 +52,7 @@ class Message(db.Model):
     user_id = db.Column(db.Integer)
     raw_data = db.Column(db.Text)
 
-# Create tables
+# Create tables once at startup
 with app.app_context():
     try:
         db.create_all()
@@ -98,8 +90,8 @@ class SalesReportView(BaseView):
         }
         stats = {}
         for label, start in periods.items():
-            count = db.session.query(Sale).filter(Sale.timestamp >= start).count()
-            stats[label] = count
+            cnt = db.session.query(Sale).filter(Sale.timestamp >= start).count()
+            stats[label] = cnt
         return self.render('admin/sales_report.html', stats=stats)
 
 class BulkUploadView(BaseView):
@@ -145,7 +137,6 @@ def get_balance(user_id):
     conn.close()
     return bal
 
-
 def update_balance(user_id, amount):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -153,7 +144,6 @@ def update_balance(user_id, amount):
     c.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, user_id))
     conn.commit()
     conn.close()
-
 
 def get_products():
     conn = sqlite3.connect(DB_PATH)
@@ -186,13 +176,11 @@ def send_message(chat_id, text, buttons=None):
         payload['reply_markup'] = {'inline_keyboard': buttons}
     requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage', json=payload)
 
-
 def answer_callback(callback_id):
     requests.post(
         f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/answerCallbackQuery',
         json={'callback_query_id': callback_id}
     )
-
 
 def send_document(chat_id, filename):
     with open(os.path.join(FILE_DIR, filename), 'rb') as doc:
@@ -218,6 +206,7 @@ def webhook():
     elif 'callback_query' in data:
         uid = data['callback_query']['from']['id']
 
+    # Log raw update
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
@@ -227,7 +216,7 @@ def webhook():
     conn.commit()
     conn.close()
 
-    # IPN callbacks
+    # IPN callback handling
     status = data.get('payment_status')
     if status in ('confirmed', 'partially_paid'):
         uid = int(str(data.get('order_id')).split('_')[0])
@@ -242,7 +231,7 @@ def webhook():
         send_message(uid, f'Your deposit has been credited as {credits:.2f} credits.')
         return '', 200
 
-    # User messages
+    # User message handling
     if 'message' in data:
         msg = data['message']
         chat_id = msg['from']['id']
@@ -286,13 +275,15 @@ def webhook():
         elif action == 'balance':
             bal = get_balance(chat_id)
             send_message(chat_id, f'Your balance: {bal:.2f} credits')
-        elif action.startswith('buy_categories'):
+        elif action == 'buy_categories':
             buttons = [[{'text': 'Fullz', 'callback_data': 'category_fullz'}], [{'text': 'Fullz with CS', 'callback_data': 'category_fullz_cs'}], [{'text': "CPN's", 'callback_data': 'category_cpn'}]]
             send_message(chat_id, 'Choose category:', buttons)
         elif action.startswith('category_'):
             prods = get_products()
-            buttons = [[{'text': f'{n} - {p:.2f} credits', 'callback_data': f'buy_{i}'}] for i, n, p in prods]
-            send_message(chat_id, 'Products:', buttons)
+            btns = []
+            for i, name, price in prods:
+                btns.append([{'text': f'{name} - {price:.2f} credits', 'callback_data': f'buy_{i}'}])
+            send_message(chat_id, 'Products:', btns)
         elif action.startswith('buy_'):
             pid = int(action.split('_', 1)[1])
             bal = get_balance(chat_id)
