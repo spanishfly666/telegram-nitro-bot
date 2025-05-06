@@ -44,6 +44,7 @@ class Deposit(db.Model):
 
 # Message log model
 class Message(db.Model):
+    __tablename__ = 'messages'
     id = db.Column(db.Integer, primary_key=True)
     update_id = db.Column(db.String(64), unique=True)
     user_id = db.Column(db.Integer)
