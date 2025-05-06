@@ -52,8 +52,10 @@ class Message(db.Model):
 
 # Create tables
 with app.app_context():
-    # Create all tables (idempotent)
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        app.logger.warning(f"db.create_all() skipped: {e}")
 
 # --- Admin Interface ---
 admin = Admin(app, name='Nitro Panel', template_mode='bootstrap4')
