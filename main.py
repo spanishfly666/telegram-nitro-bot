@@ -52,12 +52,9 @@ class Message(db.Model):
     user_id = db.Column(db.Integer)
     raw_data = db.Column(db.Text)
 
-# Create tables once at startup
+# Create all tables (only missing ones will be created)
 with app.app_context():
-    try:
-        db.create_all()
-    except Exception as e:
-        app.logger.warning(f"db.create_all() skipped: {e}")
+    db.create_all()
 
 # --- Admin Interface ---
 admin = Admin(app, name='Nitro Panel', template_mode='bootstrap4')
@@ -88,10 +85,8 @@ class SalesReportView(BaseView):
             'Monthly': now - timedelta(days=30),
             'Year-to-Date': now.replace(month=1, day=1)
         }
-        stats = {}
-        for label, start in periods.items():
-            cnt = db.session.query(Sale).filter(Sale.timestamp >= start).count()
-            stats[label] = cnt
+        stats = {label: db.session.query(Sale).filter(Sale.timestamp >= start).count()
+                 for label, start in periods.items()}
         return self.render('admin/sales_report.html', stats=stats)
 
 class BulkUploadView(BaseView):
@@ -99,14 +94,16 @@ class BulkUploadView(BaseView):
     def index(self):
         msg = ''
         if request.method == 'POST':
-            text = request.form.get('bulk_text', '')
-            lines = text.strip().splitlines()
+            text = request.form.get('bulk_text', '').strip()
+            lines = text.splitlines()
             count = 0
             for line in lines:
                 parts = line.split('|')
                 if len(parts) == 3:
                     name, fn, price = parts
-                    prod = Product(name=name.strip(), filename=fn.strip(), price=float(price))
+                    prod = Product(name=name.strip(),
+                                   filename=fn.strip(),
+                                   price=float(price))
                     db.session.add(prod)
                     count += 1
             db.session.commit()
@@ -124,7 +121,6 @@ admin.add_view(BulkUploadView(name='Bulk Upload', endpoint='bulk'))
 DB_PATH = 'database.sqlite'
 FILE_DIR = 'files'
 deposit_requests = {}
-
 os.makedirs(FILE_DIR, exist_ok=True)
 
 # Utilities
@@ -186,7 +182,8 @@ def send_document(chat_id, filename):
     with open(os.path.join(FILE_DIR, filename), 'rb') as doc:
         files = {'document': doc}
         data = {'chat_id': chat_id}
-        requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument', files=files, data=data)
+        requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument',
+                      files=files, data=data)
 
 # Routes
 @app.route('/', methods=['GET'])
@@ -206,7 +203,7 @@ def webhook():
     elif 'callback_query' in data:
         uid = data['callback_query']['from']['id']
 
-    # Log raw update
+    # log raw update
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
@@ -236,6 +233,8 @@ def webhook():
         msg = data['message']
         chat_id = msg['from']['id']
         text = msg.get('text', '').strip()
+
+        # deposit flow
         if deposit_requests.get(chat_id) == 'await_amount':
             try:
                 usd = float(text)
@@ -246,44 +245,61 @@ def webhook():
                 send_message(chat_id, 'Enter a valid number.')
             deposit_requests.pop(chat_id, None)
             return '', 200
+
         if text == '/start':
             buttons = [
                 [{'text': '💰 Deposit', 'callback_data': 'deposit'}],
                 [{'text': '📥 Buy Product', 'callback_data': 'buy_categories'}],
                 [{'text': '📊 Check Balance', 'callback_data': 'balance'}]
             ]
-            if chat_id == OWNER_ID:
+            if OWNER_ID and chat_id == OWNER_ID:
                 buttons.append([{'text': '🔧 Admin', 'callback_data': 'admin'}])
             send_message(chat_id, 'Welcome! Choose an option:', buttons)
 
-    # Callback queries
+    # Callback query handling
     if 'callback_query' in data:
         cb = data['callback_query']
         chat_id = cb['from']['id']
         action = cb['data']
         answer_callback(cb['id'])
+
         if action == 'deposit':
-            buttons = [[{'text': 'BTC', 'callback_data': 'deposit_btc'}], [{'text': 'Manual Deposit', 'callback_data': 'deposit_manual'}]]
+            buttons = [
+                [{'text': 'BTC', 'callback_data': 'deposit_btc'}],
+                [{'text': 'Manual Deposit', 'callback_data': 'deposit_manual'}]
+            ]
             send_message(chat_id, 'Choose deposit method:', buttons)
+
         elif action == 'deposit_btc':
             deposit_requests[chat_id] = 'await_amount'
             send_message(chat_id, 'Enter USD amount to deposit:')
+
         elif action == 'deposit_manual':
             send_message(chat_id, 'Please contact the admin @goatflow517 for manual deposits.')
-        elif action == 'admin':
-            send_message(chat_id, f'Access the admin panel here:\n{BASE_URL}/admin')
+
         elif action == 'balance':
             bal = get_balance(chat_id)
             send_message(chat_id, f'Your balance: {bal:.2f} credits')
+
+        elif action == 'admin':
+            send_message(chat_id, f'Access the admin panel here:\n{BASE_URL}/admin')
+
         elif action == 'buy_categories':
-            buttons = [[{'text': 'Fullz', 'callback_data': 'category_fullz'}], [{'text': 'Fullz with CS', 'callback_data': 'category_fullz_cs'}], [{'text': "CPN's", 'callback_data': 'category_cpn'}]]
+            buttons = [
+                [{'text': 'Fullz', 'callback_data': 'category_fullz'}],
+                [{'text': 'Fullz with CS', 'callback_data': 'category_fullz_cs'}],
+                [{'text': "CPN's", 'callback_data': 'category_cpn'}]
+            ]
             send_message(chat_id, 'Choose category:', buttons)
+
         elif action.startswith('category_'):
             prods = get_products()
-            btns = []
-            for i, name, price in prods:
-                btns.append([{'text': f'{name} - {price:.2f} credits', 'callback_data': f'buy_{i}'}])
-            send_message(chat_id, 'Products:', btns)
+            buttons = [
+                [{'text': f'{name} — {price:.2f} credits', 'callback_data': f'buy_{pid}'}]
+                for pid, name, price in prods
+            ]
+            send_message(chat_id, 'Products:', buttons)
+
         elif action.startswith('buy_'):
             pid = int(action.split('_', 1)[1])
             bal = get_balance(chat_id)
@@ -292,6 +308,7 @@ def webhook():
             c.execute('SELECT name, filename, price FROM products WHERE id = ?', (pid,))
             row = c.fetchone()
             conn.close()
+
             if not row:
                 send_message(chat_id, 'Product not found.')
             else:
@@ -302,6 +319,7 @@ def webhook():
                     update_balance(chat_id, -pr)
                     send_document(chat_id, fn)
                     send_message(chat_id, f'You bought {name}!')
+
     return '', 200
 
 if __name__ == '__main__':
