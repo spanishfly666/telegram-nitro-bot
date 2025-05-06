@@ -14,7 +14,7 @@ from config import (
     NOWPAYMENTS_API_KEY,
     WEBHOOK_SECRET,
     BASE_URL,
-    ADMIN_TELEGRAM_ID,
+    ADMIN_ID,
     OWNER_ID,
 )
 
