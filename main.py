@@ -29,6 +29,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     balance = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(10), default='user')
+    username = db.Column(db.String(50), nullable=True)  # Added to store username
 
 class Product(db.Model):
     __tablename__ = 'products'
@@ -73,7 +74,8 @@ with app.app_context():
         '''CREATE TABLE IF NOT EXISTS users (
                id INTEGER PRIMARY KEY,
                balance REAL,
-               role TEXT
+               role TEXT,
+               username TEXT
            );'''
     )
     # products
@@ -104,8 +106,8 @@ with app.app_context():
 admin = Admin(app, name='Nitro Panel', template_mode='bootstrap4')
 
 class UserAdmin(ModelView):
-    column_list = ('id', 'balance', 'role')
-    form_columns = ('id', 'balance', 'role')
+    column_list = ('id', 'username', 'balance', 'role')
+    form_columns = ('id', 'username', 'balance', 'role')
     can_create = False
 
     @expose('/deposit/', methods=['GET', 'POST'])
@@ -172,7 +174,7 @@ admin.add_view(BulkUploadView(name='Bulk Upload', endpoint='bulk'))
 def get_balance(user_id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('INSERT OR IGNORE INTO users(id, balance) VALUES(?, 0)', (user_id,))
+    c.execute('INSERT OR IGNORE INTO users(id, balance, username) VALUES(?, 0, NULL)', (user_id,))
     c.execute('SELECT balance FROM users WHERE id=?', (user_id,))
     bal = c.fetchone()[0]
     conn.close()
@@ -181,7 +183,7 @@ def get_balance(user_id):
 def update_balance(user_id, amount):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('INSERT OR IGNORE INTO users(id, balance) VALUES(?, 0)', (user_id,))
+    c.execute('INSERT OR IGNORE INTO users(id, balance, username) VALUES(?, 0, NULL)', (user_id,))
     c.execute('UPDATE users SET balance=balance+? WHERE id=?', (amount, user_id))
     conn.commit()
     conn.close()
@@ -196,6 +198,20 @@ def get_products(category=None):
     items = c.fetchall()
     conn.close()
     return items
+
+def get_purchase_history(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        SELECT p.name, p.price, s.timestamp
+        FROM sales s
+        JOIN products p ON s.product_id = p.id
+        WHERE s.user_id = ?
+        ORDER BY s.timestamp DESC
+    ''', (user_id,))
+    history = c.fetchall()
+    conn.close()
+    return history
 
 def create_invoice(usd_amount, order_id):
     resp = requests.post(
@@ -240,10 +256,22 @@ def webhook():
     data = request.get_json(force=True) or {}
     update_id = data.get('update_id')
     uid = None
+    username = None
     if 'message' in data:
         uid = data['message']['from']['id']
+        username = data['message']['from'].get('username', 'User')
     elif 'callback_query' in data:
         uid = data['callback_query']['from']['id']
+        username = data['callback_query']['from'].get('username', 'User')
+
+    # Update username in database
+    if uid and username:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('INSERT OR IGNORE INTO users(id, balance, username) VALUES(?, 0, ?)', (uid, username))
+        c.execute('UPDATE users SET username=? WHERE id=?', (username, uid))
+        conn.commit()
+        conn.close()
 
     # log raw update
     conn = sqlite3.connect(DB_PATH)
@@ -274,10 +302,15 @@ def webhook():
     if 'message' in data:
         msg = data['message']
         chat_id = msg['from']['id']
+        username = msg['from'].get('username', 'User')
         text = msg.get('text', '').strip()
         if deposit_requests.get(chat_id) == 'await_amount':
             try:
                 usd = float(text)
+                if usd < 25:
+                    send_message(chat_id, 'Manual deposits are required for BTC load ups UNDER $25. Please contact @goatflow517.')
+                    deposit_requests.pop(chat_id, None)
+                    return '', 200
                 order_id = f'{chat_id}_{int(time.time())}'
                 inv, _ = create_invoice(usd, order_id)
                 send_message(chat_id, f'Complete payment here:\n{inv}')
@@ -286,14 +319,21 @@ def webhook():
             deposit_requests.pop(chat_id, None)
             return '', 200
         if text == '/start':
+            welcome_message = f"HI @{username} Welcome To Nitro Bot, A Full Service shop for your FULLZ and CPN needs!\n" \
+                             f"We are steadily previewing new features and updates so be sure to check out our update channel https://t.me/+0DdVC1LxX5w2ZDVh\n\n" \
+                             f"If any assistance is needed please contact admin @goatflow517!\n\n" \
+                             f"Manual deposits are required for btc load ups UNDER 25$"
             buttons = [
                 [{'text': '💰 Deposit', 'callback_data': 'deposit'}],
-                [{'text': '📥 Buy Product', 'callback_data': 'buy_categories'}],
-                [{'text': '📊 Check Balance', 'callback_data': 'balance'}]
+                [{'text': '📦 View Inventory', 'callback_data': 'buy_categories'}],
+                [{'text': '📊 Check Balance', 'callback_data': 'balance'}],
+                [{'text': '📰 Visit Update Channel', 'url': 'https://t.me/+0DdVC1LxX5w2ZDVh'}],
+                [{'text': '📞 Contact Admin', 'url': 'https://t.me/goatflow517'}],
+                [{'text': '🛒 Purchase History', 'callback_data': 'purchase_history'}]
             ]
             if chat_id == ADMIN_ID:
                 buttons.append([{'text': '🔧 Admin', 'callback_data': 'admin'}])
-            send_message(chat_id, 'Welcome! Choose an option:', buttons)
+            send_message(chat_id, welcome_message, buttons)
             return '', 200
 
     # callback queries
@@ -309,12 +349,21 @@ def webhook():
             deposit_requests[chat_id] = 'await_amount'
             send_message(chat_id, 'Enter USD amount to deposit:')
         elif action == 'deposit_manual':
-            send_message(chat_id, 'Please contact the admin.')
+            send_message(chat_id, 'Please contact @goatflow517 for manual deposit.')
         elif action == 'admin':
             send_message(chat_id, f'Access the admin panel here:\n{BASE_URL}/admin')
         elif action == 'balance':
             bal = get_balance(chat_id)
             send_message(chat_id, f'Your balance: {bal:.2f} credits')
+        elif action == 'purchase_history':
+            history = get_purchase_history(chat_id)
+            if not history:
+                send_message(chat_id, 'No purchase history found.')
+            else:
+                msg = 'Your Purchase History:\n\n'
+                for name, price, timestamp in history:
+                    msg += f'Product: {name}\nPrice: {price:.2f} credits\nDate: {timestamp}\n\n'
+                send_message(chat_id, msg)
         elif action.startswith('buy_categories'):
             send_message(chat_id, 'Choose category:', [[{'text': 'Fullz', 'callback_data': 'category_fullz'}],
                                                         [{'text': 'Fullz with CS', 'callback_data': 'category_fullz_cs'}],
