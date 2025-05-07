@@ -2,24 +2,25 @@ import os
 import sqlite3
 import time
 import json
+import requests
 from flask import Flask, request, abort
 from flask_admin import Admin, BaseView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_sqlalchemy import SQLAlchemy
-from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL, OWNER_ID
+from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL, ADMIN_ID
 
 # --- Flask & Database Setup ---
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', 'change-me')
+
 db = SQLAlchemy(app)
 
-# Raw SQLite path & file storage
-db_path = 'database.sqlite'
+# Paths
+DB_PATH = 'database.sqlite'
 FILE_DIR = 'files'
 
-# In-memory dict for deposit workflow
 deposit_requests = {}
 
 # --- Models ---
@@ -27,7 +28,7 @@ class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     balance = db.Column(db.Float, default=0.0)
-    role = db.Column(db.String(10), default='user')  # owner, admin, seller, user
+    role = db.Column(db.String(10), default='user')
 
 class Product(db.Model):
     __tablename__ = 'products'
@@ -35,7 +36,7 @@ class Product(db.Model):
     name = db.Column(db.String(128))
     filename = db.Column(db.String(256))
     price = db.Column(db.Float)
-    category = db.Column(db.String(50))  # Added category field
+    category = db.Column(db.String(50))
     seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 class Sale(db.Model):
@@ -58,113 +59,24 @@ class Message(db.Model):
     user_id = db.Column(db.Integer)
     raw_data = db.Column(db.Text)
 
-# Create all tables via SQLAlchemy, then ensure messages and products tables exist
+# --- Ensure Tables Exist ---
 with app.app_context():
     try:
         db.create_all()
     except Exception as e:
         app.logger.error(f"db.create_all() failed: {e}")
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    
-    # Ensure messages table exists
+    # users
     c.execute(
-        '''CREATE TABLE IF NOT EXISTS messages (
+        '''CREATE TABLE IF NOT EXISTS users (
                id INTEGER PRIMARY KEY,
-               update_id TEXT UNIQUE,
-               user_id INTEGER,
-               raw_data TEXT
+               balance REAL,
+               role TEXT
            );'''
     )
-    
-    # Ensure products table exists before altering
-    c.execute(
-        '''CREATE TABLE IF NOT EXISTS products (
-               id INTEGER PRIMARY KEY,
-               name TEXT,
-               filename```python
-import os
-import sqlite3
-import time
-import json
-from flask import Flask, request, abort
-from flask_admin import Admin, BaseView, expose
-from flask_admin.contrib.sqla import ModelView
-from flask_sqlalchemy import SQLAlchemy
-from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL, OWNER_ID
-
-# --- Flask & Database Setup ---
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', 'change-me')
-db = SQLAlchemy(app)
-
-# Raw SQLite path & file storage
-db_path = 'database.sqlite'
-FILE_DIR = 'files'
-
-# In-memory dict for deposit workflow
-deposit_requests = {}
-
-# --- Models ---
-class User(db.Model):
-    __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    balance = db.Column(db.Float, default=0.0)
-    role = db.Column(db.String(10), default='user')  # owner, admin, seller, user
-
-class Product(db.Model):
-    __tablename__ = 'products'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(128))
-    filename = db.Column(db.String(256))
-    price = db.Column(db.Float)
-    category = db.Column(db.String(50))  # Added category field
-    seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-
-class Sale(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer)
-    product_id = db.Column(db.Integer)
-    timestamp = db.Column(db.DateTime, default=db.func.now())
-
-class Deposit(db.Model):
-    order_id = db.Column(db.String(64), primary_key=True)
-    user_id = db.Column(db.Integer)
-    invoice_url = db.Column(db.String(512))
-    status = db.Column(db.String(32), default='pending')
-    timestamp = db.Column(db.DateTime, default=db.func.now())
-
-class Message(db.Model):
-    __tablename__ = 'messages'
-    id = db.Column(db.Integer, primary_key=True)
-    update_id = db.Column(db.String(64), unique=True)
-    user_id = db.Column(db.Integer)
-    raw_data = db.Column(db.Text)
-
-# Create all tables via SQLAlchemy, then ensure messages and products tables exist
-with app.app_context():
-    try:
-        db.create_all()
-    except Exception as e:
-        app.logger.error(f"db.create_all() failed: {e}")
-
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    
-    # Ensure messages table exists
-    c.execute(
-        '''CREATE TABLE IF NOT EXISTS messages (
-               id INTEGER PRIMARY KEY,
-               update_id TEXT UNIQUE,
-               user_id INTEGER,
-               raw_data TEXT
-           );'''
-    )
-    
-    # Ensure products table exists before altering
+    # products
     c.execute(
         '''CREATE TABLE IF NOT EXISTS products (
                id INTEGER PRIMARY KEY,
@@ -173,16 +85,18 @@ with app.app_context():
                price REAL,
                category TEXT,
                seller_id INTEGER,
-               FOREIGN KEY (seller_id) REFERENCES users(id)
+               FOREIGN KEY(seller_id) REFERENCES users(id)
            );'''
     )
-    
-    # Check if category column exists, add if not
-    c.execute("PRAGMA table_info(products)")
-    columns = [col[1] for col in c.fetchall()]
-    if 'category' not in columns:
-        c.execute('ALTER TABLE products ADD COLUMN category TEXT')
-    
+    # messages
+    c.execute(
+        '''CREATE TABLE IF NOT EXISTS messages (
+               id INTEGER PRIMARY KEY,
+               update_id TEXT UNIQUE,
+               user_id INTEGER,
+               raw_data TEXT
+           );'''
+    )
     conn.commit()
     conn.close()
 
@@ -196,19 +110,18 @@ class UserAdmin(ModelView):
 
     @expose('/deposit/', methods=['GET', 'POST'])
     def deposit_view(self):
+        msg = ''
         if request.method == 'POST':
-            user_id = request.form.get('user_id', type=int)
-            amount = request.form.get('amount', type=float)
-            if user_id and amount and amount > 0:
-                user = User.query.get(user_id)
-                if user:
-                    user.balance += amount
-                    db.session.commit()
-                    return self.render('admin/deposit.html', message=f'Successfully deposited {amount} credits to user {user_id}')
-                else:
-                    return self.render('admin/deposit.html', message='User not found')
-            return self.render('admin/deposit.html', message='Invalid input')
-        return self.render('admin/deposit.html', message='')
+            uid = request.form.get('user_id', type=int)
+            amt = request.form.get('amount', type=float)
+            user = User.query.get(uid)
+            if user and amt and amt > 0:
+                user.balance += amt
+                db.session.commit()
+                msg = f'Deposited {amt:.2f} credits to user {uid}.'
+            else:
+                msg = 'Invalid user or amount.'
+        return self.render('admin/deposit.html', message=msg)
 
 class SalesReportView(BaseView):
     @expose('/')
@@ -221,7 +134,7 @@ class SalesReportView(BaseView):
             'Monthly': now - timedelta(days=30),
             'Year-to-Date': now.replace(month=1, day=1)
         }
-        stats = {label: db.session.query(Sale).filter(Sale.timestamp>=start).count()
+        stats = {label: db.session.query(Sale).filter(Sale.timestamp >= start).count()
                  for label, start in periods.items()}
         return self.render('admin/sales_report.html', stats=stats)
 
@@ -232,25 +145,20 @@ class BulkUploadView(BaseView):
         categories = ['Fullz', 'Fullz with CS', "CPN's"]
         if request.method == 'POST':
             text = request.form.get('bulk_text', '').strip()
-            category = request.form.get('category', '').strip()
-            if category not in categories:
-                msg = 'Invalid category selected.'
+            cat = request.form.get('category', '')
+            if cat not in categories:
+                msg = 'Select a valid category.'
             else:
                 count = 0
                 for line in text.splitlines():
                     parts = line.split('|')
                     if len(parts) == 3:
                         name, fn, price = parts
-                        prod = Product(
-                            name=name.strip(),
-                            filename=fn.strip(),
-                            price=float(price),
-                            category=category
-                        )
+                        prod = Product(name=name.strip(), filename=fn.strip(), price=float(price), category=cat)
                         db.session.add(prod)
                         count += 1
                 db.session.commit()
-                msg = f'Imported {count} products to {category} category.'
+                msg = f'Imported {count} products into {cat}.'
         return self.render('admin/bulk_upload.html', message=msg, categories=categories)
 
 admin.add_view(UserAdmin(User, db.session, endpoint='useradmin'))
@@ -260,34 +168,34 @@ admin.add_view(ModelView(Deposit, db.session, endpoint='deposit'))
 admin.add_view(SalesReportView(name='Sales Report', endpoint='sales'))
 admin.add_view(BulkUploadView(name='Bulk Upload', endpoint='bulk'))
 
-# === Bot Logic ===
+# --- Bot Logic ---
 def get_balance(user_id):
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('INSERT OR IGNORE INTO users (id,balance) VALUES (?,0)', (user_id,))
+    c.execute('INSERT OR IGNORE INTO users(id, balance) VALUES(?, 0)', (user_id,))
     c.execute('SELECT balance FROM users WHERE id=?', (user_id,))
     bal = c.fetchone()[0]
     conn.close()
     return bal
 
 def update_balance(user_id, amount):
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('INSERT OR IGNORE INTO users (id,balance) VALUES (?,0)', (user_id,))
+    c.execute('INSERT OR IGNORE INTO users(id, balance) VALUES(?, 0)', (user_id,))
     c.execute('UPDATE users SET balance=balance+? WHERE id=?', (amount, user_id))
     conn.commit()
     conn.close()
 
 def get_products(category=None):
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     if category:
-        c.execute('SELECT id,name,price FROM products WHERE category=?', (category,))
+        c.execute('SELECT id, name, price FROM products WHERE category=?', (category,))
     else:
-        c.execute('SELECT id,name,price FROM products')
-    prods = c.fetchall()
+        c.execute('SELECT id, name, price FROM products')
+    items = c.fetchall()
     conn.close()
-    return prods
+    return items
 
 def create_invoice(usd_amount, order_id):
     resp = requests.post(
@@ -306,11 +214,13 @@ def create_invoice(usd_amount, order_id):
 
 def send_message(chat_id, text, buttons=None):
     payload = {'chat_id': chat_id, 'text': text}
-    if buttons: payload['reply_markup'] = {'inline_keyboard': buttons}
+    if buttons:
+        payload['reply_markup'] = {'inline_keyboard': buttons}
     requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage', json=payload)
 
 def answer_callback(cid):
-    requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/answerCallbackQuery', json={'callback_query_id': cid})
+    requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/answerCallbackQuery',
+                  json={'callback_query_id': cid})
 
 def send_document(chat_id, filename):
     path = os.path.join(FILE_DIR, filename)
@@ -320,36 +230,47 @@ def send_document(chat_id, filename):
         requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument', files=files, data=data)
 
 @app.route('/', methods=['GET'])
-def index(): return 'OK', 200
+def index():
+    return 'OK', 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    if request.args.get('secret') != WEBHOOK_SECRET: abort(403)
+    if request.args.get('secret') != WEBHOOK_SECRET:
+        abort(403)
     data = request.get_json(force=True) or {}
     update_id = data.get('update_id')
     uid = None
-    if 'message' in data: uid = data['message']['from']['id']
-    elif 'callback_query' in data: uid = data['callback_query']['from']['id']
-    # log
-    conn = sqlite3.connect(db_path)
+    if 'message' in data:
+        uid = data['message']['from']['id']
+    elif 'callback_query' in data:
+        uid = data['callback_query']['from']['id']
+
+    # log raw update
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute('INSERT OR IGNORE INTO messages(update_id,user_id,raw_data) VALUES(?,?,?)',
-              (str(update_id), uid, json.dumps(data)))
+    c.execute(
+        'INSERT OR IGNORE INTO messages(update_id, user_id, raw_data) VALUES (?, ?, ?)',
+        (str(update_id), uid, json.dumps(data))
+    )
     conn.commit()
     conn.close()
-    # IPN
+
+    # handle IPN
     status = data.get('payment_status')
     if status in ('confirmed', 'partially_paid'):
         uid = int(str(data.get('order_id')).split('_')[0])
         btc_amt = float(data.get('pay_amount') or data.get('payment_amount') or 0)
-        est = requests.get('https://api.nowpayments.io/v1/estimate',
-                          params={'source_currency': 'BTC', 'target_currency': 'USD', 'source_amount': btc_amt},
-                          headers={'x-api-key': NOWPAYMENTS_API_KEY}).json()
+        est = requests.get(
+            'https://api.nowpayments.io/v1/estimate',
+            params={'source_currency': 'BTC', 'target_currency': 'USD', 'source_amount': btc_amt},
+            headers={'x-api-key': NOWPAYMENTS_API_KEY}
+        ).json()
         credits = float(est.get('estimated_amount', 0))
         update_balance(uid, credits)
         send_message(uid, f'Your deposit has been credited as {credits:.2f} credits.')
         return '', 200
-    # Messages
+
+    # user messages
     if 'message' in data:
         msg = data['message']
         chat_id = msg['from']['id']
@@ -370,11 +291,12 @@ def webhook():
                 [{'text': '📥 Buy Product', 'callback_data': 'buy_categories'}],
                 [{'text': '📊 Check Balance', 'callback_data': 'balance'}]
             ]
-            if chat_id == OWNER_ID:
+            if chat_id == ADMIN_ID:
                 buttons.append([{'text': '🔧 Admin', 'callback_data': 'admin'}])
             send_message(chat_id, 'Welcome! Choose an option:', buttons)
             return '', 200
-    # Callbacks
+
+    # callback queries
     if 'callback_query' in data:
         cb = data['callback_query']
         chat_id = cb['from']['id']
@@ -382,39 +304,40 @@ def webhook():
         answer_callback(cb['id'])
         if action == 'deposit':
             send_message(chat_id, 'Choose deposit method:', [[{'text': 'BTC', 'callback_data': 'deposit_btc'}],
-                                                           [{'text': 'Manual Deposit', 'callback_data': 'deposit_manual'}]])
+                                                        [{'text': 'Manual Deposit', 'callback_data': 'deposit_manual'}]])
         elif action == 'deposit_btc':
             deposit_requests[chat_id] = 'await_amount'
             send_message(chat_id, 'Enter USD amount to deposit:')
         elif action == 'deposit_manual':
-            send_message(chat_id, 'Please contact the admin @goatflow517 for manual deposits.')
+            send_message(chat_id, 'Please contact the admin.')
         elif action == 'admin':
             send_message(chat_id, f'Access the admin panel here:\n{BASE_URL}/admin')
         elif action == 'balance':
             bal = get_balance(chat_id)
             send_message(chat_id, f'Your balance: {bal:.2f} credits')
-        elif action == 'buy_categories':
+        elif action.startswith('buy_categories'):
             send_message(chat_id, 'Choose category:', [[{'text': 'Fullz', 'callback_data': 'category_fullz'}],
-                                                    [{'text': 'Fullz with CS', 'callback_data': 'category_fullz_cs'}],
-                                                    [{'text': "CPN's", 'callback_data': "category_cpn"}]])
+                                                        [{'text': 'Fullz with CS', 'callback_data': 'category_fullz_cs'}],
+                                                        [{'text': "CPN's", 'callback_data': 'category_cpn'}]])
         elif action.startswith('category_'):
-            category = {
+            cats = {
                 'category_fullz': 'Fullz',
                 'category_fullz_cs': 'Fullz with CS',
                 'category_cpn': "CPN's"
-            }.get(action)
-            prods = get_products(category)
+            }
+            cat = cats.get(action)
+            prods = get_products(cat)
             if not prods:
-                send_message(chat_id, 'No products in this category.')
+                send_message(chat_id, f'No products in {cat}.')
             else:
-                buttons = [[{'text': f'{n} - {p:.2f} credits', 'callback_data': f'buy_{i}'}] for i, n, p in prods]
-                send_message(chat_id, f'Products in {category}:', buttons)
+                btns = [[{'text': f'{n} - {p:.2f} credits', 'callback_data': f'buy_{i}'}] for i, n, p in prods]
+                send_message(chat_id, f'Products in {cat}:', btns)
         elif action.startswith('buy_'):
             pid = int(action.split('_', 1)[1])
             bal = get_balance(chat_id)
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute('SELECT name,filename,price FROM products WHERE id=?', (pid,))
+            c.execute('SELECT name, filename, price FROM products WHERE id=?', (pid,))
             row = c.fetchone()
             conn.close()
             if not row:
@@ -427,6 +350,7 @@ def webhook():
                     update_balance(chat_id, -pr)
                     send_document(chat_id, fn)
                     send_message(chat_id, f'You bought {name}!')
+
     return '', 200
 
 if __name__ == '__main__':
