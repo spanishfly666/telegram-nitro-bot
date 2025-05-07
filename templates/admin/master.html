@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Nitro Admin Panel{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <style>
         body {
             background-color: #1a252f;
@@ -80,16 +81,16 @@
                         <a class="nav-link" href="{{ url_for('dashboard.index') }}">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('useradmin.index') }}">Users</a>
+                        <a class="nav-link" href="{{ url_for('useradmin.index_view') }}">Users</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('useradmin.deposit_view') }}">Deposit</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('product.index') }}">Products</a>
+                        <a class="nav-link" href="{{ url_for('product.index_view') }}">Products</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('sale.index') }}">Sales</a>
+                        <a class="nav-link" href="{{ url_for('sale.index_view') }}">Sales</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('sales.index') }}">Reports</a>
