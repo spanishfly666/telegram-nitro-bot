@@ -16,11 +16,13 @@
         <form method="POST">
             <div class="mb-3">
                 <label for="user_id" class="form-label">Telegram User ID</label>
-                <input type="number" class="form-control" id="user_id" name="user_id" required placeholder="Enter Telegram User ID">
+                <input type="number" class="form-control" id="user_id" name="user_id" required placeholder="Enter Telegram User ID" min="1">
+                <small class="form-text text-muted">Enter the numeric Telegram ID (e.g., 123456789).</small>
             </div>
             <div class="mb-3">
                 <label for="amount" class="form-label">Amount (Credits)</label>
-                <input type="number" step="0.01" class="form-control" id="amount" name="amount" required placeholder="Enter amount">
+                <input type="number" step="0.01" class="form-control" id="amount" name="amount" required placeholder="Enter amount" min="0.01">
+                <small class="form-text text-muted">Enter the amount to deposit (e.g., 10.50).</small>
             </div>
             <button type="submit" class="btn btn-primary">Add Credits</button>
         </form>
