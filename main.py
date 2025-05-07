@@ -9,8 +9,6 @@ from flask import Flask, request, abort, g
 from flask_admin import Admin, BaseView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_sqlalchemy import SQLAlchemy
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from werkzeug.security import check_password_hash, generate_password_hash
 import requests
 from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL, OWNER_ID
@@ -19,6 +17,15 @@ from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# --- Optional Rate Limiting ---
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    RATE_LIMITING = True
+except ImportError:
+    RATE_LIMITING = False
+    logger.warning("flask_limiter not installed. Rate limiting disabled.")
+
 # --- Flask & Database Setup ---
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
@@ -26,8 +33,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', 'change-me')
 db = SQLAlchemy(app)
 
-# Rate limiting
-limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
+# Initialize rate limiter if available
+if RATE_LIMITING:
+    limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
+else:
+    def limiter_limit(limit):
+        def decorator(f):
+            return f
+        return decorator
+    app.route = lambda path, **options: limiter_limit("100 per minute") if options.get('methods') == ['POST'] else limiter_limit("10 per minute")
 
 db_path = 'database.sqlite'
 FILE_DIR = 'files'
@@ -43,7 +57,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     balance = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(10), default='user')
-    password_hash = db.Column(db.String(128), nullable=True)  # For admin panel
+    password_hash = db.Column(db.String(128), nullable=True)
 
 class Category(db.Model):
     __tablename__ = 'categories'
@@ -84,7 +98,6 @@ class Message(db.Model):
 with app.app_context():
     try:
         db.create_all()
-        # Ensure default categories
         default_categories = ['Fullz', 'Fullz with CS', "CPN's"]
         for cat in default_categories:
             if not Category.query.filter_by(name=cat).first():
@@ -163,7 +176,7 @@ class BulkUploadView(BaseView):
                 with db.session.begin():
                     for line in text.splitlines():
                         parts=line.split('|')
-                        if len(parts)==4:  # name|filename|price|category
+                        if len(parts)==4:
                             name,fn,price,cat_name=parts
                             category = Category.query.filter_by(name=cat_name.strip()).first()
                             if category:
@@ -224,7 +237,7 @@ def update_balance(conn, user_id, amount):
 def get_products(conn, category_id=None):
     c = conn.cursor()
     query = 'SELECT id,name,price,stock FROM products WHERE stock > 0'
-    params = ()
+    params = ""
     if category_id:
         query += ' AND category_id=?'
         params = (category_id,)
@@ -276,12 +289,10 @@ def send_document(chat_id, filename):
         logger.error(f"Error sending document: {e}")
 
 @app.route('/', methods=['GET'])
-@limiter.limit("10 per minute")
 def index():
     return 'OK', 200
 
 @app.route('/webhook', methods=['POST'])
-@limiter.limit("100 per minute")
 def webhook():
     if request.args.get('secret') != WEBHOOK_SECRET:
         logger.warning("Invalid webhook secret")
@@ -296,14 +307,12 @@ def webhook():
         elif 'callback_query' in data:
             uid = data['callback_query']['from']['id']
         
-        # Log message
         with sqlite3.connect(db_path) as conn:
             c = conn.cursor()
             c.execute('INSERT OR IGNORE INTO messages(update_id,user_id,raw_data) VALUES(?,?,?)',
                      (str(update_id), uid, json.dumps(data)))
             conn.commit()
 
-        # Handle IPN
         status = data.get('payment_status')
         if status in ('confirmed', 'partially_paid'):
             uid = int(str(data.get('order_id')).split('_')[0])
@@ -316,7 +325,6 @@ def webhook():
             send_message(uid, f'Your deposit has been credited as {credits:.2f} credits.')
             return '', 200
 
-        # Handle messages
         if 'message' in data:
             msg = data['message']
             chat_id = msg['from']['id']
@@ -350,7 +358,6 @@ def webhook():
                 send_message(chat_id, 'Welcome! Choose an option:', buttons)
                 return '', 200
 
-        # Handle callbacks
         if 'callback_query' in data:
             cb = data['callback_query']
             chat_id = cb['from']['id']
