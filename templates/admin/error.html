@@ -1,0 +1,15 @@
+{% extends "admin/master.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3>Error</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-danger">
+            An error occurred: {{ error }}
+        </div>
+        <p>Please contact the administrator or try again later.</p>
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}
