@@ -120,9 +120,20 @@ class UserAdmin(ModelView):
             if user and amt and amt > 0:
                 user.balance += amt
                 db.session.commit()
-                msg = f'Deposited {amt:.2f} credits to user {uid}.'
+                # Log the manual deposit
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute(
+                    'INSERT INTO deposits (order_id, user_id, invoice_url, status, timestamp) VALUES (?, ?, ?, ?, ?)',
+                    (f'manual_{uid}_{int(time.time())}', uid, 'manual_deposit', 'completed', db.func.now())
+                )
+                conn.commit()
+                conn.close()
+                msg = f'Successfully deposited {amt:.2f} credits to user ID {uid}.'
+                # Notify user
+                send_message(uid, f'Your account has been credited with {amt:.2f} credits via manual deposit.')
             else:
-                msg = 'Invalid user or amount.'
+                msg = 'Invalid user ID or amount. Please ensure the user ID exists and the amount is positive.'
         return self.render('admin/deposit.html', message=msg)
 
 class SalesReportView(BaseView):
@@ -329,7 +340,8 @@ def webhook():
                 [{'text': '📊 Check Balance', 'callback_data': 'balance'}],
                 [{'text': '📰 Visit Update Channel', 'url': 'https://t.me/+0DdVC1LxX5w2ZDVh'}],
                 [{'text': '📞 Contact Admin', 'url': 'https://t.me/goatflow517'}],
-                [{'text': '🛒 Purchase History', 'callback_data': 'purchase_history'}]
+                [{'text': '🛒 Purchase History', 'callback_data': 'purchase_history'}],
+                [{'text': '🆔 View User ID', 'callback_data': 'view_user_id'}]  # New button
             ]
             if chat_id == ADMIN_ID:
                 buttons.append([{'text': '🔧 Admin', 'callback_data': 'admin'}])
@@ -355,6 +367,8 @@ def webhook():
         elif action == 'balance':
             bal = get_balance(chat_id)
             send_message(chat_id, f'Your balance: {bal:.2f} credits')
+        elif action == 'view_user_id':  # New callback handler
+            send_message(chat_id, f'Your User ID: {chat_id}')
         elif action == 'purchase_history':
             history = get_purchase_history(chat_id)
             if not history:

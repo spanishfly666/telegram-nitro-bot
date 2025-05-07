@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manual Deposit</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Manual Deposit</h2>
+        {% if message %}
+            <div class="alert {% if 'Success' in message %}alert-success{% else %}alert-danger{% endif %}">
+                {{ message }}
+            </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('useradmin.deposit_view') }}">
+            <div class="form-group">
+                <label for="user_id">User ID</label>
+                <input type="number" class="form-control" id="user_id" name="user_id" placeholder="Enter Telegram User ID" required>
+            </div>
+            <div class="form-group">
+                <label for="amount">Amount (Credits)</label>
+                <input type="number" step="0.01" class="form-control" id="amount" name="amount" placeholder="Enter amount" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Deposit</button>
+        </form>
+        <a href="{{ url_for('useradmin.index') }}" class="btn btn-secondary mt-3">Back to Users</a>
+    </div>
+</body>
+</html>
