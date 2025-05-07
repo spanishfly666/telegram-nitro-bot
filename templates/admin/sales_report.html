@@ -1,13 +1,26 @@
-<!doctype html>
-<html lang="en">
-  <head><meta charset="utf-8"><title>Sales Report</title></head>
-  <body>
-    <h1>Sales Report</h1>
-    <ul>
-      {% for label, count in stats.items() %}
-        <li><strong>{{ label }}:</strong> {{ count }} sales</li>
-      {% endfor %}
-    </ul>
-    <a href="{{ url_for('admin.index') }}">Back to Admin</a>
-  </body>
-</html>
+{% extends "admin/master.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3>Sales Report</h3>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Period</th>
+                    <th>Sales Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for period, count in stats.items() %}
+                    <tr>
+                        <td>{{ period }}</td>
+                        <td>{{ count }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
