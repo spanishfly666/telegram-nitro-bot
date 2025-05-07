@@ -11,6 +11,7 @@ from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL
 # --- Flask & Database Setup ---
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', 'change-me')
 db = SQLAlchemy(app)
 
@@ -57,14 +58,18 @@ class Message(db.Model):
     user_id = db.Column(db.Integer)
     raw_data = db.Column(db.Text)
 
-# Create all tables via SQLAlchemy, then ensure messages exists raw
+# Create all tables via SQLAlchemy, then ensure messages and products tables exist
 with app.app_context():
     try:
         db.create_all()
     except Exception as e:
-        app.logger.warning(f"db.create_all() skipped: {e}")
+        app.logger.error(f"db.create_all() failed: {e}")
+
     conn = sqlite3.connect(db_path)
-    conn.execute(
+    c = conn.cursor()
+    
+    # Ensure messages table exists
+    c.execute(
         '''CREATE TABLE IF NOT EXISTS messages (
                id INTEGER PRIMARY KEY,
                update_id TEXT UNIQUE,
@@ -72,10 +77,112 @@ with app.app_context():
                raw_data TEXT
            );'''
     )
-    # Ensure products table has category column
-    conn.execute(
-        '''ALTER TABLE products ADD COLUMN category TEXT'''
+    
+    # Ensure products table exists before altering
+    c.execute(
+        '''CREATE TABLE IF NOT EXISTS products (
+               id INTEGER PRIMARY KEY,
+               name TEXT,
+               filename```python
+import os
+import sqlite3
+import time
+import json
+from flask import Flask, request, abort
+from flask_admin import Admin, BaseView, expose
+from flask_admin.contrib.sqla import ModelView
+from flask_sqlalchemy import SQLAlchemy
+from config import TELEGRAM_TOKEN, NOWPAYMENTS_API_KEY, WEBHOOK_SECRET, BASE_URL, OWNER_ID
+
+# --- Flask & Database Setup ---
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET', 'change-me')
+db = SQLAlchemy(app)
+
+# Raw SQLite path & file storage
+db_path = 'database.sqlite'
+FILE_DIR = 'files'
+
+# In-memory dict for deposit workflow
+deposit_requests = {}
+
+# --- Models ---
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    balance = db.Column(db.Float, default=0.0)
+    role = db.Column(db.String(10), default='user')  # owner, admin, seller, user
+
+class Product(db.Model):
+    __tablename__ = 'products'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128))
+    filename = db.Column(db.String(256))
+    price = db.Column(db.Float)
+    category = db.Column(db.String(50))  # Added category field
+    seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+class Sale(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer)
+    product_id = db.Column(db.Integer)
+    timestamp = db.Column(db.DateTime, default=db.func.now())
+
+class Deposit(db.Model):
+    order_id = db.Column(db.String(64), primary_key=True)
+    user_id = db.Column(db.Integer)
+    invoice_url = db.Column(db.String(512))
+    status = db.Column(db.String(32), default='pending')
+    timestamp = db.Column(db.DateTime, default=db.func.now())
+
+class Message(db.Model):
+    __tablename__ = 'messages'
+    id = db.Column(db.Integer, primary_key=True)
+    update_id = db.Column(db.String(64), unique=True)
+    user_id = db.Column(db.Integer)
+    raw_data = db.Column(db.Text)
+
+# Create all tables via SQLAlchemy, then ensure messages and products tables exist
+with app.app_context():
+    try:
+        db.create_all()
+    except Exception as e:
+        app.logger.error(f"db.create_all() failed: {e}")
+
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    
+    # Ensure messages table exists
+    c.execute(
+        '''CREATE TABLE IF NOT EXISTS messages (
+               id INTEGER PRIMARY KEY,
+               update_id TEXT UNIQUE,
+               user_id INTEGER,
+               raw_data TEXT
+           );'''
     )
+    
+    # Ensure products table exists before altering
+    c.execute(
+        '''CREATE TABLE IF NOT EXISTS products (
+               id INTEGER PRIMARY KEY,
+               name TEXT,
+               filename TEXT,
+               price REAL,
+               category TEXT,
+               seller_id INTEGER,
+               FOREIGN KEY (seller_id) REFERENCES users(id)
+           );'''
+    )
+    
+    # Check if category column exists, add if not
+    c.execute("PRAGMA table_info(products)")
+    columns = [col[1] for col in c.fetchall()]
+    if 'category' not in columns:
+        c.execute('ALTER TABLE products ADD COLUMN category TEXT')
+    
     conn.commit()
     conn.close()
 
