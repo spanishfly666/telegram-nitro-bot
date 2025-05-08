@@ -1,29 +1,9 @@
-% extends 'admin/master.html' %
-% block head %
-^<link
-rel=stylesheet
-href={{ url_for('static', filename='css/styles.css') }}^>
-% endblock %
-% block body %
-^<div
-class=container mt-4^>
-^<h1^>Nitro
-Panel
-Dashboard^</h1^>
-^<p^>Test
-Dashboard^</p^>
-^<a
-href={{ url_for('upload.index') }}
-class=btn btn-secondary^>Upload
-Data^</a^>
-^<a
-href={{ url_for('admin.index') }}
-class=btn btn-primary^>Refresh
-Dashboard^</a^>
-^<a
-href={{ url_for('useradmin.deposit') }}
-class=btn btn-success^>Manage
-Deposits^</a^>
-^</div^>
-% endblock %
-
+{% extends 'admin/master.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block body %}
+  <h1>Nitro Panel Dashboard</h1>
+  <p>Test Dashboard</p>
+  <a href="{{ url_for('upload.index') }}" class="btn btn-secondary">Upload Data</a>
+  <a href="{{ url_for('admin.index') }}" class="btn btn-primary">Refresh Dashboard</a>
+  <a href="{{ url_for('useradmin.deposit') }}" class="btn btn-success">Manage Deposits</a>
+{% endblock %}

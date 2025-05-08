@@ -1,116 +1,44 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Nitro Admin Panel{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <style>
-        body {
-            background-color: #1a252f;
-            color: #f8f9fa;
-            font-family: 'Segoe UI', Arial, sans-serif;
-        }
-        .navbar {
-            background-color: #2c3e50;
-            border-bottom: 2px solid #f28c38;
-        }
-        .navbar-brand, .nav-link {
-            color: #f8f9fa !important;
-        }
-        .nav-link:hover {
-            color: #f28c38 !important;
-        }
-        .btn-primary {
-            background-color: #f28c38;
-            border-color: #f28c38;
-        }
-        .btn-primary:hover {
-            background-color: #e07b30;
-            border-color: #e07b30;
-        }
-        .card {
-            background-color: #2c3e50;
-            border: 1px solid #f28c38;
-        }
-        .form-control {
-            background-color: #34495e;
-            border-color: #f28c38;
-            color: #f8f9fa;
-        }
-        .form-control:focus {
-            background-color: #34495e;
-            border-color: #f28c38;
-            color: #f8f9fa;
-            box-shadow: 0 0 0 0.2rem rgba(242, 140, 56, 0.25);
-        }
-        .alert-success {
-            background-color: #28a745;
-            border-color: #28a745;
-            color: #fff;
-        }
-        .alert-danger {
-            background-color: #dc3545;
-            border-color: #dc3545;
-            color: #fff;
-        }
-        .table {
-            color: #f8f9fa;
-        }
-        .table th {
-            background-color: #f28c38;
-            color: #1a252f;
-        }
-        .table tbody tr:hover {
-            background-color: #34495e;
-        }
-    </style>
-    {% block head %}{% endblock %}
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('dashboard.index') }}">Nitro Admin</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard.index') }}">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('useradmin.index_view') }}">Users</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('useradmin.deposit_view') }}">Deposit</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('product.index_view') }}">Products</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('sale.index_view') }}">Sales</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('sales.index') }}">Reports</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('bulk.index') }}">Bulk Upload</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-    <div class="container mt-4">
-        {% if get_flashed_messages() %}
-            {% for message in get_flashed_messages() %}
-                <div class="alert alert-info">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-        {% block content %}{% endblock %}
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    {% block scripts %}{% endblock %}
-</body>
-</html>
+cd C:\Users\PLAIN\Desktop\telegram_nitro_bot_package
+mkdir templates\admin
+echo ^<!DOCTYPE html^> > templates\admin\master.html
+echo ^<html lang="en"^> >> templates\admin\master.html
+echo ^<head^> >> templates\admin\master.html
+echo   ^<meta charset="UTF-8"^> >> templates\admin\master.html
+echo   ^<meta name="viewport" content="width=device-width, initial-scale=1.0"^> >> templates\admin\master.html
+echo   ^<title^>{% block title %}Nitro Panel{% endblock %}^</title^> >> templates\admin\master.html
+echo   ^<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"^> >> templates\admin\master.html
+echo   ^<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"^> >> templates\admin\master.html
+echo   {% block head %}{% endblock %} >> templates\admin\master.html
+echo ^</head^> >> templates\admin\master.html
+echo ^<body^> >> templates\admin\master.html
+echo   ^<nav class="navbar navbar-expand-lg navbar-dark bg-dark"^> >> templates\admin\master.html
+echo     ^<a class="navbar-brand" href="{{ url_for('admin.index') }}"^>Nitro Panel^</a^> >> templates\admin\master.html
+echo     ^<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"^> >> templates\admin\master.html
+echo       ^<span class="navbar-toggler-icon"^>^</span^> >> templates\admin\master.html
+echo     ^</button^> >> templates\admin\master.html
+echo     ^<div class="collapse navbar-collapse" id="navbarNav"^> >> templates\admin\master.html
+echo       ^<ul class="navbar-nav"^> >> templates\admin\master.html
+echo         ^<li class="nav-item"^> >> templates\admin\master.html
+echo           ^<a class="nav-link" href="{{ url_for('admin.index') }}"^>Dashboard^</a^> >> templates\admin\master.html
+echo         ^</li^> >> templates\admin\master.html
+echo         ^<li class="nav-item"^> >> templates\admin\master.html
+echo           ^<a class="nav-link" href="{{ url_for('useradmin.deposit') }}"^>Deposits^</a^> >> templates\admin\master.html
+echo         ^</li^> >> templates\admin\master.html
+echo         ^<li class="nav-item"^> >> templates\admin\master.html
+echo           ^<a class="nav-link" href="{{ url_for('upload.index') }}"^>Upload Data^</a^> >> templates\admin\master.html
+echo         ^</li^> >> templates\admin\master.html
+echo         ^<li class="nav-item"^> >> templates\admin\master.html
+echo           ^<a class="nav-link" href="{{ url_for('sales.index') }}"^>Sales Report^</a^> >> templates\admin\master.html
+echo         ^</li^> >> templates\admin\master.html
+echo       ^</ul^> >> templates\admin\master.html
+echo     ^</div^> >> templates\admin\master.html
+echo   ^</nav^> >> templates\admin\master.html
+echo   ^<div class="container mt-4"^> >> templates\admin\master.html
+echo     {% block body %}{% endblock %} >> templates\admin\master.html
+echo   ^</div^> >> templates\admin\master.html
+echo   ^<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"^>^</script^> >> templates\admin\master.html
+echo   ^<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"^>^</script^> >> templates\admin\master.html
+echo   ^<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"^>^</script^> >> templates\admin\master.html
+echo ^</body^> >> templates\admin\master.html
+echo ^</html^> >> templates\admin\master.html
+(Get-Content templates\admin\master.html -Raw) -replace "`r`n", "`n" | Set-Content templates\admin\master.html
