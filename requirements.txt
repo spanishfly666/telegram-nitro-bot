@@ -19,3 +19,4 @@ Flask-SQLAlchemy>=3.0.3
 requests>=2.31.0
 psycopg2-binary
 cryptography
+tenacity
