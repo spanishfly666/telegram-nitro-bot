@@ -8,3 +8,4 @@ ADMIN_ID = int(os.getenv("ADMIN_TELEGRAM_ID"))
 OWNER_ID = 1217831346  # your Telegram ID
 
 
+
