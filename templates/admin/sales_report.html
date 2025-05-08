@@ -1,26 +1,13 @@
-{% extends "admin/master.html" %}
-{% block content %}
-<div class="card">
-    <div class="card-header">
-        <h3>Sales Report</h3>
-    </div>
+{% extends 'admin/master.html' %}
+{% block body %}
+  <h1>Sales Report</h1>
+  <div class="card">
+    <div class="card-header">Sales by Period</div>
     <div class="card-body">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Period</th>
-                    <th>Sales Count</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for period, count in stats.items() %}
-                    <tr>
-                        <td>{{ period }}</td>
-                        <td>{{ count }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+      {% for label, count in stats.items() %}
+        <p>{{ label }}: {{ count }} sales</p>
+      {% endfor %}
     </div>
-</div>
+  </div>
+  <a href="{{ url_for('admin.index') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
 {% endblock %}
