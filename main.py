@@ -8,10 +8,16 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from datetime import datetime, timedelta
 from cryptography.fernet import Fernet
-from python_dotenv import load_dotenv
 import tenacity
 import io
 import logging
+
+# Optional python-dotenv import
+try:
+    from python_dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    logging.warning("python-dotenv not found; relying on environment variables")
 
 # --- Logging Setup ---
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 # --- Flask & Database Setup ---
 app = Flask(__name__)
-load_dotenv()
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET', 'change-me')
