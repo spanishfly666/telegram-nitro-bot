@@ -1,53 +1,77 @@
-{% extends "admin/master.html" %}
-{% block content %}
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h4>Sales Overview</h4>
-            </div>
-            <div class="card-body">
-                <p><strong>Total Sales:</strong> {{ total_sales }}</p>
-                {% for period, count in sales_stats.items() %}
-                    <p><strong>{{ period }}:</strong> {{ count }} sales</p>
-                {% endfor %}
-                <a href="{{ url_for('sales.index') }}" class="btn btn-primary btn-sm">View Detailed Report</a>
-            </div>
+{% extends 'admin/master.html' %}
+{% block body %}
+  <h1>Nitro Panel Dashboard</h1>
+  
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">Sales Statistics</div>
+        <div class="card-body">
+          {% for label, count in sales_stats.items() %}
+            <p>{{ label }}: {{ count }} sales</p>
+          {% endfor %}
+          <p><strong>Total Sales:</strong> {{ total_sales }}</p>
         </div>
+      </div>
     </div>
-    <div class="col-md-4 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h4>User Statistics</h4>
-            </div>
-            <div class="card-body">
-                <p><strong>Total Users:</strong> {{ total_users }}</p>
-                <h5>Recent Uploads:</h5>
-                <ul>
-                    {% for upload in recent_uploads %}
-                        <li>{{ upload.name }} ({{ upload.category }})</li>
-                    {% endfor %}
-                </ul>
-                <a href="{{ url_for('useradmin.index') }}" class="btn btn-primary btn-sm">Manage Users</a>
-            </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">Users</div>
+        <div class="card-body">
+          <p>Total Users: {{ total_users }}</p>
+          <a href="{{ url_for('useradmin.index_view') }}" class="btn btn-primary">View Users</a>
         </div>
+      </div>
     </div>
-    <div class="col-md-4 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h4>Product Inventory</h4>
-            </div>
-            <div class="card-body">
-                <p><strong>Total Products:</strong> {{ total_products }}</p>
-                <h5>Categories:</h5>
-                <ul>
-                    {% for category in categories %}
-                        <li>{{ category[0] }}</li>
-                    {% endfor %}
-                </ul>
-                <a href="{{ url_for('product.index') }}" class="btn btn-primary btn-sm">Manage Products</a>
-            </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header">Products</div>
+        <div class="card-body">
+          <p>Total Products: {{ total_products }}</p>
+          <p>Categories: {{ categories|join(', ') }}</p>
+          <a href="{{ url_for('product.index_view') }}" class="btn btn-primary">View Products</a>
+          <a href="{{ url_for('upload.index') }}" class="btn btn-secondary">Upload Data</a>
         </div>
+      </div>
     </div>
-</div>
+  </div>
+  
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">Recent Uploads</div>
+        <div class="card-body">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for product in recent_uploads %}
+                <tr>
+                  <td>{{ product.id }}</td>
+                  <td>{{ product.name }}</td>
+                  <td>{{ product.category }}</td>
+                  <td>{{ product.price }} credits</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="4">No recent uploads</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <a href="{{ url_for('sales.index') }}" class="btn btn-info">View Sales Report</a>
+      <a href="{{ url_for('useradmin.deposit') }}" class="btn btn-success">Manage Deposits</a>
+    </div>
+  </div>
 {% endblock %}
