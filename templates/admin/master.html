@@ -1,44 +1,41 @@
-cd C:\Users\PLAIN\Desktop\telegram_nitro_bot_package
-mkdir templates\admin
-echo ^<!DOCTYPE html^> > templates\admin\master.html
-echo ^<html lang="en"^> >> templates\admin\master.html
-echo ^<head^> >> templates\admin\master.html
-echo   ^<meta charset="UTF-8"^> >> templates\admin\master.html
-echo   ^<meta name="viewport" content="width=device-width, initial-scale=1.0"^> >> templates\admin\master.html
-echo   ^<title^>{% block title %}Nitro Panel{% endblock %}^</title^> >> templates\admin\master.html
-echo   ^<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"^> >> templates\admin\master.html
-echo   ^<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"^> >> templates\admin\master.html
-echo   {% block head %}{% endblock %} >> templates\admin\master.html
-echo ^</head^> >> templates\admin\master.html
-echo ^<body^> >> templates\admin\master.html
-echo   ^<nav class="navbar navbar-expand-lg navbar-dark bg-dark"^> >> templates\admin\master.html
-echo     ^<a class="navbar-brand" href="{{ url_for('admin.index') }}"^>Nitro Panel^</a^> >> templates\admin\master.html
-echo     ^<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"^> >> templates\admin\master.html
-echo       ^<span class="navbar-toggler-icon"^>^</span^> >> templates\admin\master.html
-echo     ^</button^> >> templates\admin\master.html
-echo     ^<div class="collapse navbar-collapse" id="navbarNav"^> >> templates\admin\master.html
-echo       ^<ul class="navbar-nav"^> >> templates\admin\master.html
-echo         ^<li class="nav-item"^> >> templates\admin\master.html
-echo           ^<a class="nav-link" href="{{ url_for('admin.index') }}"^>Dashboard^</a^> >> templates\admin\master.html
-echo         ^</li^> >> templates\admin\master.html
-echo         ^<li class="nav-item"^> >> templates\admin\master.html
-echo           ^<a class="nav-link" href="{{ url_for('useradmin.deposit') }}"^>Deposits^</a^> >> templates\admin\master.html
-echo         ^</li^> >> templates\admin\master.html
-echo         ^<li class="nav-item"^> >> templates\admin\master.html
-echo           ^<a class="nav-link" href="{{ url_for('upload.index') }}"^>Upload Data^</a^> >> templates\admin\master.html
-echo         ^</li^> >> templates\admin\master.html
-echo         ^<li class="nav-item"^> >> templates\admin\master.html
-echo           ^<a class="nav-link" href="{{ url_for('sales.index') }}"^>Sales Report^</a^> >> templates\admin\master.html
-echo         ^</li^> >> templates\admin\master.html
-echo       ^</ul^> >> templates\admin\master.html
-echo     ^</div^> >> templates\admin\master.html
-echo   ^</nav^> >> templates\admin\master.html
-echo   ^<div class="container mt-4"^> >> templates\admin\master.html
-echo     {% block body %}{% endblock %} >> templates\admin\master.html
-echo   ^</div^> >> templates\admin\master.html
-echo   ^<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"^>^</script^> >> templates\admin\master.html
-echo   ^<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"^>^</script^> >> templates\admin\master.html
-echo   ^<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"^>^</script^> >> templates\admin\master.html
-echo ^</body^> >> templates\admin\master.html
-echo ^</html^> >> templates\admin\master.html
-(Get-Content templates\admin\master.html -Raw) -replace "`r`n", "`n" | Set-Content templates\admin\master.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Nitro Panel{% endblock %}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="{{ url_for('admin.index') }}">Nitro Panel</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('admin.index') }}">Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('useradmin.deposit_view') }}">Deposits</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('upload.index') }}">Upload Data</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('sales.index') }}">Sales Report</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+  <div class="container mt-4">
+    {% block body %}{% endblock %}
+  </div>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

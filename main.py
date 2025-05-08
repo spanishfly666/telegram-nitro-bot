@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-from flask import Flask, request, abort, render_template, jsonify
+from flask import Flask, request, abort, render_template, jsonify, send_file
 from flask_admin import Admin, BaseView, expose
 from flask_admin.contrib.sqla import ModelView
 from flask_sqlalchemy import SQLAlchemy
@@ -84,7 +84,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     balance = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(10), default='user')
-    username = db.Column(db.String(100), nullable=True)  # Encrypted
+    username = db.Column(db.String(256), nullable=True)  # Increased from 50 to 256
 
 class Product(db.Model):
     __tablename__ = 'products'
@@ -432,6 +432,10 @@ def send_document(chat_id, filename):
 @app.route('/', methods=['GET'])
 def index():
     return 'OK', 200
+
+@app.route('/favicon.ico', methods=['GET'])
+def favicon():
+    return send_file(io.BytesIO(b''), mimetype='image/x-icon')
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
