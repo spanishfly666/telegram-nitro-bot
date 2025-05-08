@@ -1,77 +1,79 @@
 {% extends 'admin/master.html' %}
 {% block body %}
-  <h1>Nitro Panel Dashboard</h1>
-  
-  <div class="row">
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">Sales Statistics</div>
-        <div class="card-body">
-          {% for label, count in sales_stats.items() %}
-            <p>{{ label }}: {{ count }} sales</p>
-          {% endfor %}
-          <p><strong>Total Sales:</strong> {{ total_sales }}</p>
+  <div class="container mt-4">
+    <h1>Nitro Panel Dashboard</h1>
+    
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header">Sales Statistics</div>
+          <div class="card-body">
+            {% for label, count in sales_stats.items() %}
+              <p>{{ label }}: {{ count }} sales</p>
+            {% endfor %}
+            <p><strong>Total Sales:</strong> {{ total_sales }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header">Users</div>
+          <div class="card-body">
+            <p>Total Users: {{ total_users }}</p>
+            <a href="{{ url_for('useradmin.index_view') }}" class="btn btn-primary">View Users</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header">Products</div>
+          <div class="card-body">
+            <p>Total Products: {{ total_products }}</p>
+            <p>Categories: {{ categories|join(', ') }}</p>
+            <a href="{{ url_for('product.index_view') }}" class="btn btn-primary">View Products</a>
+            <a href="{{ url_for('upload.index') }}" class="btn btn-secondary">Upload Data</a>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">Users</div>
-        <div class="card-body">
-          <p>Total Users: {{ total_users }}</p>
-          <a href="{{ url_for('useradmin.index_view') }}" class="btn btn-primary">View Users</a>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card">
-        <div class="card-header">Products</div>
-        <div class="card-body">
-          <p>Total Products: {{ total_products }}</p>
-          <p>Categories: {{ categories|join(', ') }}</p>
-          <a href="{{ url_for('product.index_view') }}" class="btn btn-primary">View Products</a>
-          <a href="{{ url_for('upload.index') }}" class="btn btn-secondary">Upload Data</a>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <div class="row mt-4">
-    <div class="col-md-12">
-      <div class="card">
-        <div class="card-header">Recent Uploads</div>
-        <div class="card-body">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for product in recent_uploads %}
+    
+    <div class="row mt-4">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header">Recent Uploads</div>
+          <div class="card-body">
+            <table class="table">
+              <thead>
                 <tr>
-                  <td>{{ product.id }}</td>
-                  <td>{{ product.name }}</td>
-                  <td>{{ product.category }}</td>
-                  <td>{{ product.price }} credits</td>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Price</th>
                 </tr>
-              {% else %}
-                <tr><td colspan="4">No recent uploads</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {% for product in recent_uploads %}
+                  <tr>
+                    <td>{{ product.id }}</td>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.category }}</td>
+                    <td>{{ product.price }} credits</td>
+                  </tr>
+                {% else %}
+                  <tr><td colspan="4">No recent uploads</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-  
-  <div class="row mt-4">
-    <div class="col-md-12">
-      <a href="{{ url_for('sales.index') }}" class="btn btn-info">View Sales Report</a>
-      <a href="{{ url_for('useradmin.deposit') }}" class="btn btn-success">Manage Deposits</a>
+    
+    <div class="row mt-4">
+      <div class="col-md-12">
+        <a href="{{ url_for('sales.index') }}" class="btn btn-info">View Sales Report</a>
+        <a href="{{ url_for('useradmin.deposit') }}" class="btn btn-success">Manage Deposits</a>
+      </div>
     </div>
   </div>
 {% endblock %}

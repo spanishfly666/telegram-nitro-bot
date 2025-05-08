@@ -1,36 +1,23 @@
-{% extends "admin/master.html" %}
-{% block content %}
-<div class="card">
-    <div class="card-header">
-        <h3>Manual Deposit</h3>
-    </div>
-    <div class="card-body">
-        {% if message %}
-            <div class="alert {% if error %}alert-danger{% else %}alert-success{% endif %}">
-                {{ message }}
-                {% if new_user %}
-                    <br><strong>Note:</strong> A new user was created for this Telegram ID.
-                {% endif %}
-            </div>
-        {% endif %}
-        <form method="POST">
-            <div class="mb-3">
-                <label for="user_id" class="form-label">Telegram User ID</label>
-                <input type="number" class="form-control" id="user_id" name="user_id" placeholder="Enter Telegram User ID" min="1">
-                <small class="form-text text-muted">Enter the numeric Telegram ID (e.g., 123456789).</small>
-            </div>
-            <div class="mb-3">
-                <label for="amount" class="form-label">Amount (Credits)</label>
-                <input type="number" step="0.01" class="form-control" id="amount" name="amount" placeholder="Enter amount" min="0.01">
-                <small class="form-text text-muted">Enter the amount to deposit (e.g., 10.50).</small>
-            </div>
-            <div class="mb-3">
-                <label for="batch_price" class="form-label">Batch Price (Credits)</label>
-                <input type="number" step="0.01" class="form-control" id="batch_price" name="batch_price" value="{{ batch_price }}" placeholder="Enter batch price" min="0">
-                <small class="form-text text-muted">Set the price for products uploaded in the next batch (e.g., 5.00). Current: {{ batch_price }} credits.</small>
-            </div>
-            <button type="submit" class="btn btn-primary">Submit</button>
-        </form>
-    </div>
-</div>
+{% extends 'admin/master.html' %}
+{% block body %}
+  <div class="container mt-4">
+    <h1 class="mb-4">Manage Deposits</h1>
+    {% if message %}
+      <div class="alert {% if error %}alert-danger{% else %}alert-success{% endif %}">
+        {{ message }}
+      </div>
+    {% endif %}
+    <form method="POST" class="card p-4">
+      <div class="mb-3">
+        <label for="user_id" class="form-label">Telegram User ID</label>
+        <input type="number" class="form-control" id="user_id" name="user_id" required>
+      </div>
+      <div class="mb-3">
+        <label for="amount" class="form-label">Amount (credits)</label>
+        <input type="number" step="0.01" class="form-control" id="amount" name="amount" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Submit Deposit</button>
+    </form>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
+  </div>
 {% endblock %}
