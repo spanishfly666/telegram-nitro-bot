@@ -1,0 +1,37 @@
+{% extends "admin/master.html" %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3>Data Upload</h3>
+    </div>
+    <div class="card-body">
+        {% if message %}
+            <div class="alert {% if error %}alert-danger{% else %}alert-success{% endif %}">
+                {{ message }}
+            </div>
+        {% endif %}
+        <form method="POST">
+            <div class="mb-3">
+                <label for="data_text" class="form-label">Data (NAME;ADDRESS;CITY;STATE;ZIP;COUNTRY;SSN;DOB;PHONE NUMBER;EMAIL)</label>
+                <textarea class="form-control" id="data_text" name="data_text" rows="10" placeholder="John Doe;123 Main St;Springfield;IL;62701;USA;123-45-6789;01/01/1980;555-123-4567;john@example.com" required></textarea>
+                <small class="form-text text-muted">Enter one entry per line, semicolon-separated, with 10 fields.</small>
+            </div>
+            <div class="mb-3">
+                <label for="category" class="form-label">Product Type</label>
+                <select class="form-control" id="category" name="category" required>
+                    <option value="" disabled selected>Select a category</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="price" class="form-label">Price per Product (Credits)</label>
+                <input type="number" step="0.01" class="form-control" id="price" name="price" value="{{ batch_price }}" placeholder="Enter price" min="0.01">
+                <small class="form-text text-muted">Defaults to batch price ({{ batch_price }} credits). Set a custom price if needed.</small>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload Data</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

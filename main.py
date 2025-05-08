@@ -9,6 +9,10 @@ from flask_admin.contrib.sqla import ModelView
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import func
 from datetime import datetime
+from cryptography.fernet import Fernet
+import base64
+import tenacity
+import io
 
 # --- Configuration ---
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
@@ -17,6 +21,36 @@ WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET')
 BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
 ADMIN_ID = int(os.environ.get('ADMIN_ID', '123456789'))
 OWNER_ID = int(os.environ.get('OWNER_ID', '123456789'))
+ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
+
+# --- Encryption Setup ---
+if not ENCRYPTION_KEY:
+    raise ValueError("ENCRYPTION_KEY must be set in environment variables")
+fernet = Fernet(ENCRYPTION_KEY.encode())
+
+def encrypt_data(data):
+    if not data:
+        return None
+    return fernet.encrypt(data.encode()).decode()
+
+def decrypt_data(encrypted_data):
+    if not encrypted_data:
+        return None
+    try:
+        return fernet.decrypt(encrypted_data.encode()).decode()
+    except Exception as e:
+        app.logger.error(f"Decryption failed: {e}")
+        return "Decryption Error"
+
+def encrypt_file_content(content):
+    return fernet.encrypt(content.encode())
+
+def decrypt_file_content(encrypted_content):
+    try:
+        return fernet.decrypt(encrypted_content).decode()
+    except Exception as e:
+        app.logger.error(f"File decryption failed: {e}")
+        return None
 
 # --- Flask & Database Setup ---
 app = Flask(__name__)
@@ -38,13 +72,13 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     balance = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(10), default='user')
-    username = db.Column(db.String(50), nullable=True)
+    username = db.Column(db.String(100), nullable=True)  # Encrypted
 
 class Product(db.Model):
     __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128))
-    filename = db.Column(db.String(256))
+    filename = db.Column(db.String(256))  # Encrypted
     price = db.Column(db.Float)
     category = db.Column(db.String(50))
     seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -71,10 +105,20 @@ class Message(db.Model):
     raw_data = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=db.func.now())
 
+class Settings(db.Model):
+    __tablename__ = 'settings'
+    id = db.Column(db.Integer, primary_key=True)
+    batch_price = db.Column(db.Float, default=0.0)
+
 # --- Ensure Tables Exist ---
 with app.app_context():
     try:
         db.create_all()
+        # Initialize settings if empty
+        if not Settings.query.first():
+            settings = Settings(batch_price=0.0)
+            db.session.add(settings)
+            db.session.commit()
     except Exception as e:
         app.logger.error(f"db.create_all() failed: {e}")
 
@@ -130,6 +174,12 @@ with app.app_context():
                    timestamp DATETIME,
                    FOREIGN KEY(user_id) REFERENCES users(id),
                    FOREIGN KEY(product_id) REFERENCES products(id)
+               );'''
+        )
+        c.execute(
+            '''CREATE TABLE IF NOT EXISTS settings (
+                   id INTEGER PRIMARY KEY,
+                   batch_price REAL DEFAULT 0.0
                );'''
         )
         conn.commit()
@@ -198,67 +248,141 @@ class UserAdmin(ModelView):
         'last_seen': 'Last Seen'
     }
     column_formatters = {
+        'username': lambda view, context, model, name: decrypt_data(model.username) if model.username else 'N/A',
         'total_deposits': lambda view, context, model, name: f"{db.session.query(func.sum(Deposit.amount)).filter(Deposit.user_id == model.id, Deposit.status == 'completed').scalar() or 0.0:.2f} credits",
         'purchase_count': lambda view, context, model, name: db.session.query(Sale).filter(Sale.user_id == model.id).count(),
         'last_seen': lambda view, context, model, name: db.session.query(Message.timestamp).filter(Message.user_id == model.id).order_by(Message.timestamp.desc()).first()[0] if db.session.query(Message).filter(Message.user_id == model.id).count() > 0 else 'Never'
     }
 
     @expose('/deposit/', methods=['GET', 'POST'])
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_fixed(1))
     def deposit_view(self):
         msg = ''
         error = False
         new_user = False
+        batch_price = Settings.query.first().batch_price if Settings.query.first() else 0.0
         if request.method == 'POST':
             try:
                 uid = request.form.get('user_id', type=int)
                 amt = request.form.get('amount', type=float)
-                if not uid or uid <= 0:
-                    msg = 'Invalid Telegram User ID. It must be a positive integer.'
-                    error = True
-                elif not amt or amt <= 0:
-                    msg = 'Invalid amount. It must be a positive number.'
-                    error = True
-                else:
-                    try:
-                        user = User.query.get(uid)
-                        if not user:
-                            user = User(id=uid, balance=0.0, role='user', username=f'User_{uid}')
-                            db.session.add(user)
-                            db.session.commit()
-                            new_user = True
-                            msg = f'New user created with ID {uid}. '
-                        
-                        user.balance += amt
-                        db.session.commit()
-
-                        # Record deposit
-                        deposit = Deposit(
-                            order_id=f'manual_{uid}_{int(time.time())}',
-                            user_id=uid,
-                            invoice_url='manual_deposit',
-                            status='completed',
-                            amount=amt,
-                            timestamp=datetime.utcnow()
-                        )
-                        db.session.add(deposit)
-                        db.session.commit()
-
-                        msg += f'Successfully deposited {amt:.2f} credits to user ID {uid}.'
-                        try:
-                            send_message(uid, f'Your account has been credited with {amt:.2f} credits via manual deposit.')
-                        except Exception as e:
-                            app.logger.error(f"Failed to send Telegram message to {uid}: {e}")
-                            msg += ' (Note: Failed to notify user via Telegram)'
-                    except Exception as e:
-                        db.session.rollback()
-                        app.logger.error(f"Deposit processing failed for user {uid}: {e}")
-                        msg = f'Failed to process deposit: {str(e)}'
+                batch_price_input = request.form.get('batch_price', type=float)
+                if batch_price_input is not None and batch_price_input >= 0:
+                    settings = Settings.query.first()
+                    if not settings:
+                        settings = Settings(batch_price=batch_price_input)
+                        db.session.add(settings)
+                    else:
+                        settings.batch_price = batch_price_input
+                    db.session.commit()
+                    batch_price = batch_price_input
+                    msg = f'Batch price set to {batch_price:.2f} credits. '
+                
+                if uid and amt:
+                    if uid <= 0:
+                        msg += 'Invalid Telegram User ID. It must be a positive integer.'
                         error = True
+                    elif amt <= 0:
+                        msg += 'Invalid amount. It must be a positive number.'
+                        error = True
+                    else:
+                        try:
+                            user = User.query.get(uid)
+                            if not user:
+                                user = User(id=uid, balance=0.0, role='user', username=encrypt_data(f'User_{uid}'))
+                                db.session.add(user)
+                                db.session.commit()
+                                new_user = True
+                                msg += f'New user created with ID {uid}. '
+                            
+                            user.balance += amt
+                            db.session.commit()
+
+                            deposit = Deposit(
+                                order_id=f'manual_{uid}_{int(time.time())}',
+                                user_id=uid,
+                                invoice_url='manual_deposit',
+                                status='completed',
+                                amount=amt,
+                                timestamp=datetime.utcnow()
+                            )
+                            db.session.add(deposit)
+                            db.session.commit()
+
+                            msg += f'Successfully deposited {amt:.2f} credits to user ID {uid}.'
+                            try:
+                                send_message(uid, f'Your account has been credited with {amt:.2f} credits via manual deposit.')
+                            except Exception as e:
+                                app.logger.error(f"Failed to send Telegram message to {uid}: {e}")
+                                msg += ' (Note: Failed to notify user via Telegram)'
+                        except Exception as e:
+                            db.session.rollback()
+                            app.logger.error(f"Deposit processing failed for user {uid}: {e}")
+                            msg = f'Failed to process deposit: {str(e)}'
+                            error = True
+                            raise e
             except ValueError as e:
                 app.logger.error(f"Input validation failed: {e}")
-                msg = 'Invalid input. Ensure User ID and amount are valid numbers.'
+                msg = 'Invalid input. Ensure User ID, amount, and batch price are valid numbers.'
                 error = True
-        return self.render('admin/deposit.html', message=msg, error=error, new_user=new_user)
+        return self.render('admin/deposit.html', message=msg, error=error, new_user=new_user, batch_price=batch_price)
+
+class DataUploadView(BaseView):
+    @expose('/', methods=['GET', 'POST'])
+    def index(self):
+        msg = ''
+        error = False
+        categories = ['Fullz', 'Fullz with CS', "CPN's"]
+        batch_price = Settings.query.first().batch_price if Settings.query.first() else 0.0
+        if request.method == 'POST':
+            text = request.form.get('data_text', '').strip()
+            cat = request.form.get('category', '')
+            price = request.form.get('price', type=float, default=batch_price)
+            if not text:
+                msg = 'No data provided.'
+                error = True
+            elif cat not in categories:
+                msg = 'Select a valid category.'
+                error = True
+            elif price <= 0:
+                msg = 'Price must be a positive number.'
+                error = True
+            else:
+                try:
+                    count = 0
+                    os.makedirs(FILE_DIR, exist_ok=True)
+                    for idx, line in enumerate(text.splitlines(), 1):
+                        parts = line.split(';')
+                        if len(parts) != 10:
+                            msg = f'Invalid format in line {idx}. Expected 10 fields.'
+                            error = True
+                            break
+                        name = f'{cat}_{idx}'
+                        filename = f'{cat.lower().replace(" ", "_")}_{idx}.txt'
+                        file_path = os.path.join(FILE_DIR, filename)
+                        # Encrypt file content
+                        encrypted_content = encrypt_file_content(line)
+                        with open(file_path, 'wb') as f:
+                            f.write(encrypted_content)
+                        # Encrypt filename
+                        encrypted_filename = encrypt_data(filename)
+                        prod = Product(
+                            name=name,
+                            filename=encrypted_filename,
+                            price=price,
+                            category=cat,
+                            seller_id=ADMIN_ID
+                        )
+                        db.session.add(prod)
+                        count += 1
+                    if not error:
+                        db.session.commit()
+                        msg = f'Imported {count} products into {cat} at {price:.2f} credits each.'
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.error(f"Data upload failed: {e}")
+                    msg = 'Failed to import products. Please check the format and try again.'
+                    error = True
+        return self.render('admin/upload.html', message=msg, categories=categories, error=error, batch_price=batch_price)
 
 class SalesReportView(BaseView):
     @expose('/')
@@ -279,50 +403,20 @@ class SalesReportView(BaseView):
             app.logger.error(f"Sales report rendering failed: {e}")
             return render_template('admin/error.html', error=str(e)), 500
 
-class BulkUploadView(BaseView):
-    @expose('/', methods=['GET', 'POST'])
-    def index(self):
-        msg = ''
-        error = False
-        categories = ['Fullz', 'Fullz with CS', "CPN's"]
-        if request.method == 'POST':
-            text = request.form.get('bulk_text', '').strip()
-            cat = request.form.get('category', '')
-            if cat not in categories:
-                msg = 'Select a valid category.'
-                error = True
-            else:
-                try:
-                    count = 0
-                    for line in text.splitlines():
-                        parts = line.split('|')
-                        if len(parts) == 3:
-                            name, fn, price = parts
-                            prod = Product(name=name.strip(), filename=fn.strip(), price=float(price), category=cat)
-                            db.session.add(prod)
-                            count += 1
-                    db.session.commit()
-                    msg = f'Imported {count} products into {cat}.'
-                except Exception as e:
-                    app.logger.error(f"Bulk upload failed: {e}")
-                    msg = 'Failed to import products. Please check the format and try again.'
-                    error = True
-        return self.render('admin/bulk_upload.html', message=msg, categories=categories, error=error)
-
 admin.add_view(DashboardView(name='Dashboard', endpoint='dashboard'))
 admin.add_view(UserAdmin(User, db.session, endpoint='useradmin'))
 admin.add_view(ModelView(Product, db.session, endpoint='product'))
 admin.add_view(ModelView(Sale, db.session, endpoint='sale'))
 admin.add_view(ModelView(Deposit, db.session, endpoint='deposit'))
 admin.add_view(SalesReportView(name='Sales Report', endpoint='sales'))
-admin.add_view(BulkUploadView(name='Bulk Upload', endpoint='bulk'))
+admin.add_view(DataUploadView(name='Data Upload', endpoint='upload'))
 
 # --- Bot Logic ---
 def get_balance(user_id):
     try:
         user = User.query.get(user_id)
         if not user:
-            user = User(id=user_id, balance=0.0, role='user', username=f'User_{user_id}')
+            user = User(id=user_id, balance=0.0, role='user', username=encrypt_data(f'User_{user_id}'))
             db.session.add(user)
             db.session.commit()
         return user.balance
@@ -334,7 +428,7 @@ def update_balance(user_id, amount):
     try:
         user = User.query.get(user_id)
         if not user:
-            user = User(id=user_id, balance=0.0, role='user', username=f'User_{user_id}')
+            user = User(id=user_id, balance=0.0, role='user', username=encrypt_data(f'User_{user_id}'))
             db.session.add(user)
         user.balance += amount
         db.session.commit()
@@ -344,8 +438,12 @@ def update_balance(user_id, amount):
 def get_products(category=None):
     try:
         if category:
-            return Product.query.filter_by(category=category).all()
-        return Product.query.all()
+            prods = Product.query.filter_by(category=category).all()
+        else:
+            prods = Product.query.all()
+        for prod in prods:
+            prod.decrypted_filename = decrypt_data(prod.filename)
+        return prods
     except Exception as e:
         app.logger.error(f"Get products failed: {e}")
         return []
@@ -395,11 +493,16 @@ def answer_callback(cid):
 
 def send_document(chat_id, filename):
     try:
-        path = os.path.join(FILE_DIR, filename)
-        with open(path, 'rb') as doc:
-            files = {'document': doc}
-            data = {'chat_id': chat_id}
-            requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument', files=files, data=data)
+        decrypted_filename = decrypt_data(filename)
+        path = os.path.join(FILE_DIR, decrypted_filename)
+        with open(path, 'rb') as f:
+            encrypted_content = f.read()
+        decrypted_content = decrypt_file_content(encrypted_content)
+        if not decrypted_content:
+            raise ValueError("Failed to decrypt file content")
+        files = {'document': (decrypted_filename, io.StringIO(decrypted_content))}
+        data = {'chat_id': chat_id}
+        requests.post(f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument', files=files, data=data)
     except Exception as e:
         app.logger.error(f"Send document failed to chat {chat_id}: {e}")
 
@@ -426,22 +529,22 @@ def webhook():
         if uid and username:
             try:
                 user = User.query.get(uid)
+                encrypted_username = encrypt_data(username)
                 if not user:
-                    user = User(id=uid, balance=0.0, role='user', username=username)
+                    user = User(id=uid, balance=0.0, role='user', username=encrypted_username)
                     db.session.add(user)
                 else:
-                    user.username = username
+                    user.username = encrypted_username
                 db.session.commit()
             except Exception as e:
                 app.logger.error(f"Failed to create/update user {uid}: {e}")
                 db.session.rollback()
 
             try:
-                # Record message with timestamp
                 message = Message(
                     update_id=update_id,
                     user_id=uid,
-                    raw_data=json.dumps(data),
+                    raw_data=json.dumps(data, default=str),
                     timestamp=datetime.utcnow()
                 )
                 db.session.add(message)
@@ -461,7 +564,6 @@ def webhook():
                 ).json()
                 credits = float(est.get('estimated_amount', 0))
                 update_balance(uid, credits)
-                # Update deposit record
                 deposit = Deposit.query.get(data.get('order_id'))
                 if deposit:
                     deposit.status = 'completed'
