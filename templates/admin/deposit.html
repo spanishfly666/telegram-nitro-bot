@@ -1,23 +1,58 @@
-{% extends 'admin/master.html' %}
-{% block body %}
-  <div class="container mt-4">
-    <h1 class="mb-4">Manage Deposits</h1>
-    {% if message %}
-      <div class="alert {% if error %}alert-danger{% else %}alert-success{% endif %}">
-        {{ message }}
-      </div>
-    {% endif %}
-    <form method="POST" class="card p-4">
-      <div class="mb-3">
-        <label for="user_id" class="form-label">Telegram User ID</label>
-        <input type="number" class="form-control" id="user_id" name="user_id" required>
-      </div>
-      <div class="mb-3">
-        <label for="amount" class="form-label">Amount (credits)</label>
-        <input type="number" step="0.01" class="form-control" id="amount" name="amount" required>
-      </div>
-      <button type="submit" class="btn btn-primary">Submit Deposit</button>
-    </form>
-    <a href="{{ url_for('admin.index') }}" class="btn btn-secondary mt-3">Back to Dashboard</a>
-  </div>
-{% endblock %}
+% extends 'admin/master.html' %
+% block head %
+^<link
+rel=stylesheet
+href={{ url_for('static', filename='css/styles.css') }}^>
+% endblock %
+% block body %
+^<div
+class=container mt-4^>
+^<h1
+class=mb-4^>Manage
+Deposits^</h1^>
+% if message %
+^<div
+class=alert {% if error %}alert-danger{% else %}alert-success{% endif %}^>
+{ message }
+^</div^>
+% endif %
+^<form
+method=POST
+class=card p-4^>
+^<div
+class=mb-3^>
+^<label
+for=user_id
+class=form-label^>Telegram
+User
+ID^</label^>
+^<input
+type=number
+class=form-control
+id=user_id
+name=user_id
+required^>
+^</div^>
+^<div
+class=mb-3^>
+^<input
+type=number
+step=0.01
+class=form-control
+id=amount
+name=amount
+required^>
+^</div^>
+^<button
+type=submit
+class=btn btn-primary^>Submit
+Deposit^</button^>
+^</form^>
+^<a
+href={{ url_for('admin.index') }}
+class=btn btn-secondary mt-3^>Back
+to
+Dashboard^</a^>
+^</div^>
+% endblock %
+

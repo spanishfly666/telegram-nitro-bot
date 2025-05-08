@@ -1,0 +1,35 @@
+body
+ >> static\css\styles.css
+echo   background-color: #f8f9fa; >> static\css\styles.css
+echo   font-family: Arial, sans-serif; >> static\css\styles.css
+echo 
+.card
+ >> static\css\styles.css
+echo   border-radius: 8px; >> static\css\styles.css
+echo   box-shadow: 0 2px 4px rgba(0,0,0,0.1); >> static\css\styles.css
+echo 
+.btn-primary
+ >> static\css\styles.css
+echo   background-color: #007bff; >> static\css\styles.css
+echo   border-color: #007bff; >> static\css\styles.css
+echo 
+.btn-primary:hover
+ >> static\css\styles.css
+echo   background-color: #0056b3; >> static\css\styles.css
+echo   border-color: #0056b3; >> static\css\styles.css
+echo 
+.btn-secondary
+ >> static\css\styles.css
+echo   background-color: #6c757d; >> static\css\styles.css
+echo   border-color: #6c757d; >> static\css\styles.css
+echo 
+.btn-success
+ >> static\css\styles.css
+echo   background-color: #28a745; >> static\css\styles.css
+echo   border-color: #28a745; >> static\css\styles.css
+echo 
+.alert
+ >> static\css\styles.css
+echo   border-radius: 8px; >> static\css\styles.css
+echo 
+
