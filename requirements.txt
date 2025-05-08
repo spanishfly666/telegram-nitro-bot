@@ -30,3 +30,4 @@ requests==2.32.3
 tenacity==8.5.0
 gunicorn==23.0.0
 cffi==1.17.1
+tenacity
