@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nitro Shop</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .categories, .products {
+            margin: 20px 0;
+        }
+        .category-btn, .product-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .category-btn:hover, .product-btn:hover {
+            background-color: #0056b3;
+        }
+        .product {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+        .product:last-child {
+            border-bottom: none;
+        }
+        .product h3 {
+            margin: 0;
+            color: #333;
+        }
+        .product p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .no-products {
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nitro Shop</h1>
+        <div class="categories">
+            <h2>Categories</h2>
+            {% for category in categories %}
+                <a href="?category={{ category }}" class="category-btn">{{ category }}</a>
+            {% endfor %}
+        </div>
+        <div class="products">
+            <h2>Products</h2>
+            {% if products %}
+                {% for product in products %}
+                    <div class="product">
+                        <h3>{{ product.name }}</h3>
+                        <p>Price: {{ product.price }} credits</p>
+                        {% if product.details %}
+                            <p>Details: 
+                                {% if product.details.first_name %}First Name: {{ product.details.first_name }}{% endif %}
+                                {% if product.details.year_born %}, Year Born: {{ product.details.year_born }}{% endif %}
+                                {% if product.details.city %}, City: {{ product.details.city }}{% endif %}
+                            </p>
+                        {% endif %}
+                        <button class="product-btn" onclick="buyProduct('buy_{{ product.id }}')">Buy Now</button>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="no-products">No products available in this category.</p>
+            {% endif %}
+        </div>
+    </div>
+    <script>
+        function buyProduct(callbackData) {
+            fetch('https://api.telegram.org/bot{{ telegram_token }}/sendMessage', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    chat_id: {{ user_id }},
+                    text: 'Processing your purchase...',
+                    reply_markup: {
+                        inline_keyboard: [[{ text: 'Confirm', callback_data: callbackData }]]
+                    }
+                })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.ok) {
+                      window.location.reload();
+                  } else {
+                      alert('Failed to initiate purchase.');
+                  }
+              }).catch(error => {
+                  console.error('Error:', error);
+                  alert('An error occurred.');
+              });
+        }
+    </script>
+</body>
+</html>
