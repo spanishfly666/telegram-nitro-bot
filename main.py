@@ -11,6 +11,7 @@ from cryptography.fernet import Fernet
 import tenacity
 import io
 import logging
+import uuid
 
 # Optional python-dotenv import
 try:
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Configuration
-app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET', 'change-me')
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET', 'default-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://localhost/nitro_bot').replace('postgres://', 'postgresql://')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
@@ -39,11 +40,14 @@ FILE_DIR = 'files'
 
 # Global state
 deposit_requests = {}
+pending_purchases = {}
 
 # --- Encryption Setup ---
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
 if not ENCRYPTION_KEY:
-    raise ValueError("ENCRYPTION_KEY must be set in environment variables")
+    logger.warning("ENCRYPTION_KEY not set. Generating a temporary key (this will invalidate existing encrypted data).")
+    ENCRYPTION_KEY = Fernet.generate_key().decode()
+    logger.info(f"Temporary ENCRYPTION_KEY: {ENCRYPTION_KEY}")
 fernet = Fernet(ENCRYPTION_KEY.encode())
 
 def encrypt_data(data):
@@ -81,31 +85,32 @@ def decrypt_file_content(encrypted_content):
 # --- Models ---
 class User(db.Model):
     __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.BigInteger, primary_key=True)
     balance = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(10), default='user')
-    username = db.Column(db.String(256), nullable=True)  # Increased from 50 to 256
+    username = db.Column(db.String(256), nullable=True)
 
 class Product(db.Model):
     __tablename__ = 'products'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128))
-    filename = db.Column(db.String(256))  # Encrypted
+    filename = db.Column(db.String(256))
     price = db.Column(db.Float)
     category = db.Column(db.String(50))
-    seller_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    seller_id = db.Column(db.BigInteger, db.ForeignKey('users.id'))
+    details = db.Column(db.JSON, nullable=True)
 
 class Sale(db.Model):
     __tablename__ = 'sales'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'))
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
     timestamp = db.Column(db.DateTime, default=func.now())
 
 class Deposit(db.Model):
     __tablename__ = 'deposits'
     order_id = db.Column(db.String(64), primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'))
     invoice_url = db.Column(db.String(512))
     status = db.Column(db.String(32), default='pending')
     timestamp = db.Column(db.DateTime, default=func.now())
@@ -115,7 +120,7 @@ class Message(db.Model):
     __tablename__ = 'messages'
     id = db.Column(db.Integer, primary_key=True)
     update_id = db.Column(db.String(64), unique=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'))
     raw_data = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=func.now())
 
@@ -274,6 +279,11 @@ class DataUploadView(BaseView):
                             msg = f'Invalid format in line {idx}. Expected 10 fields.'
                             error = True
                             break
+                        details = {
+                            'first_name': parts[0].split('|')[0],
+                            'year_born': parts[2].split('|')[0],
+                            'city': parts[5].split('|')[0]
+                        }
                         name = f'{cat}_{idx}'
                         filename = f'{cat.lower().replace(" ", "_")}_{idx}.txt'
                         file_path = os.path.join(FILE_DIR, filename)
@@ -290,7 +300,8 @@ class DataUploadView(BaseView):
                             filename=encrypted_filename,
                             price=price,
                             category=cat,
-                            seller_id=int(os.getenv('ADMIN_ID', '123456789'))
+                            seller_id=int(os.getenv('ADMIN_ID', '123456789')),
+                            details=details
                         )
                         db.session.add(prod)
                         count += 1
@@ -354,16 +365,14 @@ def update_balance(user_id, amount):
         db.session.commit()
     except Exception as e:
         logger.error(f"Update balance failed for user {user_id}: {e}")
+        db.session.rollback()
 
 def get_products(category=None):
     try:
         query = Product.query
         if category:
             query = query.filter_by(category=category)
-        prods = query.all()
-        for prod in prods:
-            prod.decrypted_filename = decrypt_data(prod.filename)
-        return prods
+        return query.all()
     except Exception as e:
         logger.error(f"Get products failed: {e}")
         return []
@@ -437,8 +446,20 @@ def index():
 def favicon():
     return send_file(io.BytesIO(b''), mimetype='image/x-icon')
 
+@app.route('/shop/<int:user_id>', methods=['GET'])
+def shop(user_id):
+    category = request.args.get('category')
+    products = get_products(category) if category else []
+    categories = ['Fullz', 'Fullz with CS', "CPN's"]
+    return render_template('shop.html', user_id=user_id, categories=categories, products=products, telegram_token=os.getenv('TELEGRAM_TOKEN'))
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    logger.info("🚨 Webhook was hit")
+    logger.info(f"Request args: {request.args}")
+    logger.info(f"Expected secret: {os.getenv('WEBHOOK_SECRET')}")
+    logger.info(f"Incoming body: {request.get_data(as_text=True)}")
+
     try:
         if request.args.get('secret') != os.getenv('WEBHOOK_SECRET'):
             abort(403)
@@ -567,10 +588,8 @@ def webhook():
                     for name, price, timestamp in history:
                         msg += f'Product: {name}\nPrice: {price:.2f} credits\nDate: {timestamp}\n\n'
                     send_message(chat_id, msg)
-            elif action.startswith('buy_categories'):
-                send_message(chat_id, 'Choose category:', [[{'text': 'Fullz', 'callback_data': 'category_fullz'}],
-                                                            [{'text': 'Fullz with CS', 'callback_data': 'category_fullz_cs'}],
-                                                            [{'text': "CPN's", 'callback_data': 'category_cpn'}]])
+            elif action == 'buy_categories':
+                send_message(chat_id, f'Visit the shop: {os.getenv("BASE_URL", "http://localhost:5000")}/shop/{chat_id}')
             elif action.startswith('category_'):
                 cats = {
                     'category_fullz': 'Fullz',
@@ -578,12 +597,7 @@ def webhook():
                     'category_cpn': "CPN's"
                 }
                 cat = cats.get(action)
-                prods = get_products(cat)
-                if not prods:
-                    send_message(chat_id, f'No products in {cat}.')
-                else:
-                    btns = [[{'text': f'{p.name} - {p.price:.2f} credits', 'callback_data': f'buy_{p.id}'}] for p in prods]
-                    send_message(chat_id, f'Products in {cat}:', btns)
+                send_message(chat_id, f'Visit the shop: {os.getenv("BASE_URL", "http://localhost:5000")}/shop/{chat_id}?category={cat}')
             elif action.startswith('buy_'):
                 pid = int(action.split('_', 1)[1])
                 bal = get_balance(chat_id)
@@ -594,17 +608,48 @@ def webhook():
                     if bal < product.price:
                         send_message(chat_id, 'Insufficient balance.')
                     else:
-                        try:
-                            update_balance(chat_id, -product.price)
-                            sale = Sale(user_id=chat_id, product_id=pid, timestamp=datetime.utcnow())
-                            db.session.add(sale)
-                            db.session.commit()
-                            send_document(chat_id, product.filename)
-                            send_message(chat_id, f'You bought {product.name}!')
-                        except Exception as e:
-                            logger.error(f"Purchase failed for user {chat_id}, product {pid}: {e}")
-                            db.session.rollback()
-                            send_message(chat_id, 'Purchase failed. Please try again.')
+                        pending_purchases[chat_id] = pid
+                        buttons = [[{'text': 'Confirm Purchase', 'callback_data': f'confirm_{pid}'}],
+                                  [{'text': 'Cancel', 'callback_data': 'cancel_purchase'}]]
+                        send_message(chat_id, f'Confirm purchase of {product.name} for {product.price:.2f} credits?', buttons)
+            elif action.startswith('confirm_'):
+                pid = int(action.split('_', 1)[1])
+                if pending_purchases.get(chat_id) != pid:
+                    send_message(chat_id, 'Invalid purchase confirmation.')
+                    return '', 200
+                bal = get_balance(chat_id)
+                product = Product.query.get(pid)
+                if not product:
+                    send_message(chat_id, 'Product not found.')
+                    pending_purchases.pop(chat_id, None)
+                    return '', 200
+                if bal < product.price:
+                    send_message(chat_id, 'Insufficient balance.')
+                    pending_purchases.pop(chat_id, None)
+                    return '', 200
+                try:
+                    update_balance(chat_id, -product.price)
+                    new_balance = get_balance(chat_id)
+                    sale = Sale(user_id=chat_id, product_id=pid, timestamp=datetime.utcnow())
+                    db.session.add(sale)
+                    send_document(chat_id, product.filename)
+                    decrypted_filename = decrypt_data(product.filename)
+                    if decrypted_filename:
+                        file_path = os.path.join(FILE_DIR, decrypted_filename)
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                    db.session.delete(product)
+                    db.session.commit()
+                    send_message(chat_id, f'You bought {product.name}!\nDeducted: {product.price:.2f} credits\nBalance: {new_balance:.2f} credits')
+                    pending_purchases.pop(chat_id, None)
+                except Exception as e:
+                    logger.error(f"Purchase failed for user {chat_id}, product {pid}: {e}")
+                    db.session.rollback()
+                    send_message(chat_id, 'Purchase failed. Please try again.')
+                    pending_purchases.pop(chat_id, None)
+            elif action == 'cancel_purchase':
+                pending_purchases.pop(chat_id, None)
+                send_message(chat_id, 'Purchase cancelled.')
 
         return '', 200
     except Exception as e:
@@ -620,4 +665,3 @@ def handle_error(error):
 if __name__ == '__main__':
     os.makedirs(FILE_DIR, exist_ok=True)
     app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
-
