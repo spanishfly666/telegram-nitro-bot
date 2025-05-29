@@ -83,7 +83,7 @@
                                 {% if product.details.city %}, City: {{ product.details.city }}{% endif %}
                             </p>
                         {% endif %}
-                        <button class="product-btn" onclick="buyProduct('buy_{{ product.id }}')">Buy Now</button>
+                        <p><em>To buy, use the bot buttons inside Telegram</em></p>
                     </div>
                 {% endfor %}
             {% else %}
@@ -91,32 +91,5 @@
             {% endif %}
         </div>
     </div>
-    <script>
-        function buyProduct(callbackData) {
-            fetch('https://api.telegram.org/bot{{ telegram_token }}/sendMessage', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    chat_id: {{ user_id }},
-                    text: 'Processing your purchase...',
-                    reply_markup: {
-                        inline_keyboard: [[{ text: 'Confirm', callback_data: callbackData }]]
-                    }
-                })
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.ok) {
-                      window.location.reload();
-                  } else {
-                      alert('Failed to initiate purchase.');
-                  }
-              }).catch(error => {
-                  console.error('Error:', error);
-                  alert('An error occurred.');
-              });
-        }
-    </script>
 </body>
 </html>
