@@ -1,4 +1,3 @@
-```python
 import os
 import io
 import logging
@@ -69,7 +68,9 @@ def decrypt_data(encrypted_data):
 
 def encrypt_file_content(content):
     try:
-        return fernet.encrypt(content.encode())
+        if isinstance(content, str):
+            content = content.encode()
+        return fernet.encrypt(content)
     except Exception as e:
         logger.error(f"File encryption failed: {e}")
         return None
@@ -400,19 +401,32 @@ async def handle_callback(update: Update, context):
             await query.message.reply_text(msg)
     elif action == "buy_categories":
         categories = ["Fullz", "Fullz with CS", "CPN's"]
-        keyboard = [[InlineKeyboardButton(cat, callback_data=f"category_{cat.replace(' ', '_').lower()}")] for cat in categories]
+        keyboard = [[InlineKeyboardButton(cat, callback_data=f"category_{cat.replace(' ', '_').lower()}_1")] for cat in categories]
         await query.message.reply_text("Choose a category:", reply_markup=InlineKeyboardMarkup(keyboard))
     elif action.startswith("category_"):
-        cat = action.replace("category_", "").replace("_", " ").title()
+        parts = action.split("_")
+        cat = " ".join(parts[1:-1]).replace("_", " ").title()
+        page = int(parts[-1])
         if cat == "Cpn's":
             cat = "CPN's"
         products = get_products(cat)
         if not products:
             await query.message.reply_text(f"No products available in {cat}.")
             return
-        keyboard = [[InlineKeyboardButton(f"{p.name} - {p.price:.2f} credits", callback_data=f"buy_{p.id}")] for p in products[:10]]  # Limit to 10 for simplicity
+        items_per_page = 10
+        total_pages = (len(products) + items_per_page - 1) // items_per_page
+        start = (page - 1) * items_per_page
+        end = start + items_per_page
+        keyboard = [[InlineKeyboardButton(f"{p.name} - {p.price:.2f} credits", callback_data=f"buy_{p.id}")] for p in products[start:end]]
+        nav_buttons = []
+        if page > 1:
+            nav_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"category_{cat.lower().replace(' ', '_')}_{page-1}"))
+        if page < total_pages:
+            nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"category_{cat.lower().replace(' ', '_')}_{page+1}"))
+        if nav_buttons:
+            keyboard.append(nav_buttons)
         keyboard.append([InlineKeyboardButton("Back to Categories", callback_data="buy_categories")])
-        await query.message.reply_text(f"Products in {cat}:", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.message.reply_text(f"Products in {cat} (Page {page}/{total_pages}):", reply_markup=InlineKeyboardMarkup(keyboard))
     elif action.startswith("buy_"):
         pid = int(action.split("_", 1)[1])
         bal = get_balance(chat_id)
@@ -455,24 +469,33 @@ async def handle_callback(update: Update, context):
             decrypted_filename = decrypt_data(product.filename)
             if decrypted_filename:
                 file_path = os.path.join(FILE_DIR, decrypted_filename)
-                if os.path.exists(file_path):
-                    with open(file_path, "rb") as f:
-                        encrypted_content = f.read()
-                    decrypted_content = decrypt_file_content(encrypted_content)
-                    if decrypted_content:
-                        await context.bot.send_document(
-                            chat_id=chat_id,
-                            document=io.BytesIO(decrypted_content),
-                            filename=decrypted_filename,
-                            caption=f"Your purchased file: {product.name}",
-                            content_type="application/octet-stream"
-                        )
+                if not os.path.exists(file_path):
+                    logger.error(f"File not found: {file_path}")
+                    await query.message.reply_text("File not found. Please contact @goatflow517.")
+                    db.session.rollback()
+                    pending_purchases.pop(chat_id, None)
+                    return
+                with open(file_path, "rb") as f:
+                    encrypted_content = f.read()
+                decrypted_content = decrypt_file_content(encrypted_content)
+                if decrypted_content:
+                    await context.bot.send_document(
+                        chat_id=chat_id,
+                        document=io.BytesIO(decrypted_content),
+                        filename=decrypted_filename,
+                        caption=f"Your purchased file: {product.name}",
+                        content_type="application/octet-stream"
+                    )
+                    try:
                         os.remove(file_path)
-                    else:
-                        await query.message.reply_text("Failed to decrypt file. Please contact @goatflow517.")
-                        db.session.rollback()
-                        pending_purchases.pop(chat_id, None)
-                        return
+                        logger.info(f"Deleted file: {file_path}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete file {file_path}: {e}")
+                else:
+                    await query.message.reply_text("Failed to decrypt file. Please contact @goatflow517.")
+                    db.session.rollback()
+                    pending_purchases.pop(chat_id, None)
+                    return
             db.session.delete(product)
             db.session.commit()
             await query.message.reply_text(
@@ -482,7 +505,7 @@ async def handle_callback(update: Update, context):
         except Exception as e:
             logger.error(f"Purchase failed for user {chat_id}, product {pid}: {e}")
             db.session.rollback()
-            await query.message.reply_text("Purchase failed. Please try again.")
+            await query.message.reply_text("Purchase failed. Please try again or contact @goatflow517.")
             pending_purchases.pop(chat_id, None)
     elif action == "cancel_purchase":
         pending_purchases.pop(chat_id, None)
@@ -513,12 +536,12 @@ async def handle_message(update: Update, context):
                 db.session.add(deposit)
                 db.session.commit()
             else:
-                await update.message.reply_text("Failed to create invoice. Please try again.")
+                await update.message.reply_text("Failed to create invoice. Please try again or contact @goatflow517.")
         except ValueError:
             await update.message.reply_text("Enter a valid number.")
         deposit_requests.pop(chat_id, None)
         return
-    await update.message.reply_text("Sorry, I didn't understand that command.")
+    await update.message.reply_text("Sorry, I didn't understand that command. Use /start to begin.")
 
 # Bot setup
 async def setup_bot():
@@ -527,7 +550,7 @@ async def setup_bot():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_handler(MessageHandler(filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.COMMAND, lambda update, context: update.message.reply_text("Unknown command. Use /start to begin.")))
     return application
 
 # Business logic
@@ -549,12 +572,16 @@ def update_balance(user_id, amount):
         if not user:
             user = User(id=user_id, balance=0.0, role="user", username=encrypt_data(f"User_{user_id}"))
             db.session.add(user)
-        user.balance += amount
+        new_balance = user.balance + amount
+        if new_balance < 0:
+            raise ValueError("Balance cannot be negative")
+        user.balance = new_balance
         db.session.commit()
         logger.info(f"Balance updated for user {user_id}: {user.balance}")
     except Exception as e:
         logger.error(f"Update balance failed for user {user_id}: {e}")
         db.session.rollback()
+        raise
 
 def get_products(category=None):
     try:
@@ -582,7 +609,7 @@ def create_invoice(usd_amount, order_id):
                 "price_currency": "usd",
                 "pay_currency": "btc",
                 "order_id": order_id,
-                "ipn_callback_url": f"{BASE_URL}/webhook?secret={WEBHOOK_SECRET}",
+                "ipn_callback_url": f"{BASE_URL}/webhook",
                 "is_fixed_rate": True
             },
             headers={"x-api-key": NOWPAYMENTS_API_KEY}
@@ -600,34 +627,35 @@ def index():
 @app.route("/webhook", methods=["POST"])
 async def webhook():
     logger.info(f"Webhook hit: {request.get_data(as_text=True)}")
-    if request.args.get("secret") != WEBHOOK_SECRET:
-        logger.error(f"Invalid webhook secret: {request.args.get('secret')}")
+    if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != WEBHOOK_SECRET:
+        logger.error(f"Invalid webhook secret: {request.headers.get('X-Telegram-Bot-Api-Secret-Token')}")
         return Response("Unauthorized", status=403)
     data = request.get_json(force=True) or {}
     update_id = str(data.get("update_id", ""))
 
     # Handle NOWPayments callback
-    status = data.get("payment_status")
-    if status in ("confirmed", "partially_paid"):
-        try:
-            uid = int(str(data.get("order_id")).split("_")[0])
-            btc_amt = float(data.get("pay_amount") or data.get("payment_amount") or 0)
-            est = requests.get(
-                "https://api.nowpayments.io/v1/estimate",
-                params={"source_currency": "BTC", "target_currency": "USD", "source_amount": btc_amt},
-                headers={"x-api-key": NOWPAYMENTS_API_KEY}
-            ).json()
-            credits = float(est.get("estimated_amount", 0))
-            update_balance(uid, credits)
-            deposit = Deposit.query.get(data.get("order_id"))
-            if deposit:
-                deposit.status = "completed"
-                deposit.amount = credits
-                db.session.commit()
-            await app.bot.send_message(chat_id=uid, text=f"Your deposit has been credited as {credits:.2f} credits.")
-        except Exception as e:
-            logger.error(f"Payment processing failed for order {data.get('order_id')}: {e}")
-        return Response("", status=200)
+    if data.get("payment_status"):
+        status = data.get("payment_status")
+        if status in ("confirmed", "partially_paid"):
+            try:
+                uid = int(str(data.get("order_id")).split("_")[0])
+                btc_amt = float(data.get("pay_amount") or data.get("payment_amount") or 0)
+                est = requests.get(
+                    "https://api.nowpayments.io/v1/estimate",
+                    params={"source_currency": "BTC", "target_currency": "USD", "source_amount": btc_amt},
+                    headers={"x-api-key": NOWPAYMENTS_API_KEY}
+                ).json()
+                credits = float(est.get("estimated_amount", 0))
+                update_balance(uid, credits)
+                deposit = Deposit.query.get(data.get("order_id"))
+                if deposit:
+                    deposit.status = "completed"
+                    deposit.amount = credits
+                    db.session.commit()
+                await app.bot.send_message(chat_id=uid, text=f"Your deposit has been credited as {credits:.2f} credits.")
+            except Exception as e:
+                logger.error(f"Payment processing failed for order {data.get('order_id')}: {e}")
+            return Response("", status=200)
 
     # Handle Telegram update
     try:
@@ -679,4 +707,3 @@ with app.app_context():
 if __name__ == "__main__":
     os.makedirs(FILE_DIR, exist_ok=True)
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
-```
