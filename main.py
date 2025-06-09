@@ -15,6 +15,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from telegram.constants import ParseMode
 from dotenv import load_dotenv
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -41,10 +42,13 @@ pending_purchases = {}
 # Telegram and encryption setup
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
-ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY") or Fernet.generate_key().decode()
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
 BASE_URL = os.getenv("BASE_URL")
+if not ENCRYPTION_KEY:
+    logger.error("ENCRYPTION_KEY not set in environment. Please set a stable key.")
+    raise ValueError("ENCRYPTION_KEY is required")
 fernet = Fernet(ENCRYPTION_KEY.encode())
 
 # Encryption functions
@@ -132,6 +136,7 @@ class Settings(db.Model):
 # Initialize database
 with app.app_context():
     try:
+        os.makedirs(FILE_DIR, exist_ok=True)  # Ensure FILE_DIR exists
         db.create_all()
         if not Settings.query.first():
             settings = Settings(batch_price=0.0)
@@ -139,6 +144,7 @@ with app.app_context():
             db.session.commit()
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
+        db.session.rollback()
 
 # Admin panel setup
 admin = Admin(app, name="Nitro Panel", template_mode="bootstrap4", endpoint="admin")
@@ -238,7 +244,10 @@ class UserAdmin(ModelView):
                         db.session.commit()
                         msg += f"Deposited {amt:.2f} credits to user ID {uid}."
                         try:
-                            app.bot.send_message(chat_id=uid, text=f"Your account has been credited with {amt:.2f} credits.")
+                            asyncio.run_coroutine_threadsafe(
+                                app.bot.send_message(chat_id=uid, text=f"Your account has been credited with {amt:.2f} credits."),
+                                app.loop
+                            )
                         except Exception as e:
                             logger.error(f"Failed to notify user {uid}: {e}")
                             msg += " (Failed to notify user)"
@@ -384,9 +393,9 @@ async def handle_callback(update: Update, context):
     elif action == "deposit_manual":
         await query.message.reply_text("Please contact @goatflow517 for manual deposit.")
     elif action == "admin":
-        await query.message.reply_text(f"Access the admin panel here:\n{BASE_URL}/admin")
+        await query.message.reply_text(f"Access the admin panel here:\n{BASE_URL}")
     elif action == "balance":
-        bal = get_balance(chat_id)
+        bal = get_balance(db.session, chat_id)
         await query.message.reply_text(f"Your balance: {bal:.2f} credits")
     elif action == "view_user_id":
         await query.message.reply_text(f"Your User ID: {chat_id}")
@@ -409,7 +418,7 @@ async def handle_callback(update: Update, context):
         page = int(parts[-1])
         if cat == "Cpn's":
             cat = "CPN's"
-        products = get_products(cat)
+        products = get_products(db.session, cat)
         if not products:
             await query.message.reply_text(f"No products available in {cat}.")
             return
@@ -420,16 +429,16 @@ async def handle_callback(update: Update, context):
         keyboard = [[InlineKeyboardButton(f"{p.name} - {p.price:.2f} credits", callback_data=f"buy_{p.id}")] for p in products[start:end]]
         nav_buttons = []
         if page > 1:
-            nav_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"category_{cat.lower().replace(' ', '_')}_{page-1}"))
+            nav_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"category_{cat.lower().replace(' ', '_')}_{page-1}""))
         if page < total_pages:
             nav_buttons.append(InlineKeyboardButton("Next ➡️", callback_data=f"category_{cat.lower().replace(' ', '_')}_{page+1}"))
         if nav_buttons:
             keyboard.append(nav_buttons)
         keyboard.append([InlineKeyboardButton("Back to Categories", callback_data="buy_categories")])
-        await query.message.reply_text(f"Products in {cat} (Page {page}/{total_pages}):", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.message.reply_text(f"Products in {cat} (Page {page}/{total_pages}):"", reply_markup=InlineKeyboardMarkup(keyboard))
     elif action.startswith("buy_"):
-        pid = int(action.split("_", 1)[1])
-        bal = get_balance(chat_id)
+        pid = int(action.split("_")[1])
+        bal = get_balance(db.session, chat_id)
         product = Product.query.get(pid)
         if not product:
             await query.message.reply_text("Product not found.")
@@ -447,11 +456,11 @@ async def handle_callback(update: Update, context):
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     elif action.startswith("confirm_"):
-        pid = int(action.split("_", 1)[1])
+        pid = int(action.split("_")[1])
         if pending_purchases.get(chat_id) != pid:
             await query.message.reply_text("Invalid purchase confirmation.")
             return
-        bal = get_balance(chat_id)
+        bal = get_balance(db.session, chat_id)
         product = Product.query.get(pid)
         if not product:
             await query.message.reply_text("Product not found.")
@@ -462,8 +471,8 @@ async def handle_callback(update: Update, context):
             pending_purchases.pop(chat_id, None)
             return
         try:
-            update_balance(chat_id, -product.price)
-            new_balance = get_balance(chat_id)
+            update_balance(db.session, chat_id, -product.price)
+            new_balance = get_balance(db.session, chat_id)
             sale = Sale(user_id=chat_id, product_id=pid, timestamp=datetime.utcnow())
             db.session.add(sale)
             decrypted_filename = decrypt_data(product.filename)
@@ -484,32 +493,31 @@ async def handle_callback(update: Update, context):
                         document=io.BytesIO(decrypted_content),
                         filename=decrypted_filename,
                         caption=f"Your purchased file: {product.name}",
-                        content_type="application/octet-stream"
                     )
                     try:
                         os.remove(file_path)
-                        logger.info(f"Deleted file: {file_path}")
+                        logger.info(f"File deleted: {file_path}")
                     except Exception as e:
                         logger.error(f"Failed to delete file {file_path}: {e}")
-                else:
-                    await query.message.reply_text("Failed to decrypt file. Please contact @goatflow517.")
-                    db.session.rollback()
-                    pending_purchases.pop(chat_id, None)
-                    return
-            db.session.delete(product)
-            db.session.commit()
-            await query.message.reply_text(
-                f"You bought {product.name}!\nDeducted: {product.price:.2f} credits\nBalance: {new_balance:.2f} credits"
-            )
+                    else:
+                        await query.message.reply_text("Failed to decrypt file. Please contact @goatflow517.")
+                        db.session.rollback()
+                        pending_purchases.pop(chat_id, None)
+                        return
+                db.session.delete(product)
+                db.session.commit()
+                await query.message.reply_text(
+                    f"You bought {product.name}!\nDeducted: {product.price:.2f} credits\nBalance: {new_balance:.2f} credits"
+                )
+                pending_purchases.pop(chat_id, None)
+            except Exception as e:
+                logger.error(f"Purchase failed for user {chat_id}, product {pid}: {e}")
+                db.session.rollback()
+                await query.message.reply_text("Purchase failed. Please try again or contact @goatflow517.")
+                pending_purchases.pop(chat_id, None)
+        elif action == "cancel_purchase":
             pending_purchases.pop(chat_id, None)
-        except Exception as e:
-            logger.error(f"Purchase failed for user {chat_id}, product {pid}: {e}")
-            db.session.rollback()
-            await query.message.reply_text("Purchase failed. Please try again or contact @goatflow517.")
-            pending_purchases.pop(chat_id, None)
-    elif action == "cancel_purchase":
-        pending_purchases.pop(chat_id, None)
-        await query.message.reply_text("Purchase cancelled.")
+            await query.message.reply_text("Purchase cancelled.")
 
 async def handle_message(update: Update, context):
     chat_id = update.message.chat_id
@@ -518,13 +526,12 @@ async def handle_message(update: Update, context):
         try:
             usd = float(text)
             if usd < 25:
-                await update.message.reply_text("Manual deposits are required for BTC load ups UNDER $25. Please contact @goatflow517.")
+                await update.message.reply_text("Manual deposits are required for credit load ups UNDER $25. Please contact @goatflow517.")
                 deposit_requests.pop(chat_id, None)
                 return
             order_id = f"{chat_id}_{int(datetime.utcnow().timestamp())}"
-            inv, _ = create_invoice(usd, order_id)
+            inv, _ = await create_invoice(usd, order_id)
             if inv:
-                await update.message.reply_text(f"Complete payment here:\n{inv}")
                 deposit = Deposit(
                     order_id=order_id,
                     user_id=chat_id,
@@ -535,57 +542,62 @@ async def handle_message(update: Update, context):
                 )
                 db.session.add(deposit)
                 db.session.commit()
+                await update.message.reply_text(f"Complete payment here:\n{inv}")
             else:
                 await update.message.reply_text("Failed to create invoice. Please try again or contact @goatflow517.")
-        except ValueError:
-            await update.message.reply_text("Enter a valid number.")
-        deposit_requests.pop(chat_id, None)
-        return
-    await update.message.reply_text("Sorry, I didn't understand that command. Use /start to begin.")
+            except ValueError:
+                await update.message.reply_text("Please enter a valid number.")
+            deposit_requests.pop(chat_id, None)
+            return
+        await update.message.reply_text("Sorry, I didn't understand that command. Use /start to begin.")
 
 # Bot setup
 async def setup_bot():
-    app.bot = Bot(token=TELEGRAM_TOKEN)
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    bot = Bot(TELEGRAM_TOKEN)
+    application = WebBot.builder().token(TELEGRAM_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.COMMAND, lambda update, context: update.message.reply_text("Unknown command. Use /start to begin.")))
-    return application
+    webhook_url = f"{BASE_URL}/webhook/telegram"
+    await application.bot.set_webhook(url=webhook_url, secret_token=WEBHOOK_SECRET)
+    logger.info(f"Webhook set to {webhook_url}")
+    return bot, application
 
 # Business logic
-def get_balance(user_id):
+def get_balance(session, user_id):
     try:
-        user = User.query.get(user_id)
+        user = session.query(User).get(user_id)
         if not user:
             user = User(id=user_id, balance=0.0, role="user", username=encrypt_data(f"User_{user_id}"))
-            db.session.add(user)
-            db.session.commit()
+            session.add(user)
+            session.commit()
         return user.balance
     except Exception as e:
         logger.error(f"Get balance failed for user {user_id}: {e}")
+        session.rollback()
         return 0.0
 
-def update_balance(user_id, amount):
+def update_balance(session, user_id, amount):
     try:
-        user = User.query.get(user_id)
+        user = session.query(User).get(user_id)
         if not user:
             user = User(id=user_id, balance=0.0, role="user", username=encrypt_data(f"User_{user_id}"))
-            db.session.add(user)
+            session.add(user)
         new_balance = user.balance + amount
         if new_balance < 0:
             raise ValueError("Balance cannot be negative")
         user.balance = new_balance
-        db.session.commit()
-        logger.info(f"Balance updated for user {user_id}: {user.balance}")
+        session.commit()
+        logger.info(f"Balance updated for user {user_id}: {new_balance}")
     except Exception as e:
         logger.error(f"Update balance failed for user {user_id}: {e}")
-        db.session.rollback()
+        session.rollback()
         raise
 
-def get_products(category=None):
+def get_products(session, category=None):
     try:
-        query = Product.query
+        query = session.query(Product)
         if category:
             query = query.filter_by(category=category)
         return query.all()
@@ -595,25 +607,28 @@ def get_products(category=None):
 
 def get_purchase_history(user_id):
     try:
-        return db.session.query(Product.name, Product.price, Sale.timestamp).join(Sale, Sale.product_id == Product.id).filter(Sale.user_id == user_id).order_by(Sale.timestamp.desc()).all()
+        return db.session.query(Product.name, Product.price, Sale.timestamp).join(Sale, Product.id == Sale.product_id).filter(Sale.user_id == user_id).order_by(Sale.timestamp.desc()).all()
     except Exception as e:
-        logger.error(f"Purchase history failed for user {user_id}: {e}")
+        logger.error(f"Failed to get purchase history for user {user_id}: {e}")
         return []
 
-def create_invoice(usd_amount, order_id):
+async def create_invoice(usd_amount, order_id):
     try:
-        resp = requests.post(
-            "https://api.nowpayments.io/v1/invoice",
-            json={
-                "price_amount": usd_amount,
-                "price_currency": "usd",
-                "pay_currency": "btc",
-                "order_id": order_id,
-                "ipn_callback_url": f"{BASE_URL}/webhook",
-                "is_fixed_rate": True
-            },
-            headers={"x-api-key": NOWPAYMENTS_API_KEY}
-        ).json()
+        resp = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: requests.post(
+                "https://api.nowpayments.io/v1/invoice",
+                json={
+                    "price_amount": float(usd_amount),
+                    "price_currency": "usd",
+                    "pay_currency": "btc",
+                    "order_id": order_id,
+                    "ipn_callback_url": f"{BASE_URL}/webhook/payment",
+                    "is_fixed_rate": True
+                },
+                headers={"x-api": key}
+            ).json()
+        )
         return resp.get("invoice_url"), resp
     except Exception as e:
         logger.error(f"Create invoice failed: {e}")
@@ -624,46 +639,14 @@ def create_invoice(usd_amount, order_id):
 def index():
     return "OK", 200
 
-@app.route("/webhook", methods=["POST"])
-async def webhook():
-    logger.info(f"Webhook hit: {request.get_data(as_text=True)}")
+@app.route("/webhook/telegram", methods=["POST"])
+async def telegram_webhook():
     if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != WEBHOOK_SECRET:
         logger.error(f"Invalid webhook secret: {request.headers.get('X-Telegram-Bot-Api-Secret-Token')}")
         return Response("Unauthorized", status=403)
-    data = request.get_json(force=True) or {}
+    
+    data = request.get_json(silent=True) or {}
     update_id = str(data.get("update_id", ""))
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.args.get('secret') != WEBHOOK_SECRET:
-        return 'Forbidden', 403
-    ...
-
-    # Handle NOWPayments callback
-    if data.get("payment_status"):
-        status = data.get("payment_status")
-        if status in ("confirmed", "partially_paid"):
-            try:
-                uid = int(str(data.get("order_id")).split("_")[0])
-                btc_amt = float(data.get("pay_amount") or data.get("payment_amount") or 0)
-                est = requests.get(
-                    "https://api.nowpayments.io/v1/estimate",
-                    params={"source_currency": "BTC", "target_currency": "USD", "source_amount": btc_amt},
-                    headers={"x-api-key": NOWPAYMENTS_API_KEY}
-                ).json()
-                credits = float(est.get("estimated_amount", 0))
-                update_balance(uid, credits)
-                deposit = Deposit.query.get(data.get("order_id"))
-                if deposit:
-                    deposit.status = "completed"
-                    deposit.amount = credits
-                    db.session.commit()
-                await app.bot.send_message(chat_id=uid, text=f"Your deposit has been credited as {credits:.2f} credits.")
-            except Exception as e:
-                logger.error(f"Payment processing failed for order {data.get('order_id')}: {e}")
-            return Response("", status=200)
-
-    # Handle Telegram update
     try:
         update = Update.de_json(data, app.bot)
         if update:
@@ -671,9 +654,9 @@ def webhook():
                    update.callback_query.from_user.id if update.callback_query else None)
             username = (update.message.from_user.username or f"User_{uid}" if update.message else
                        update.callback_query.from_user.username or f"User_{uid}" if update.callback_query else None)
-            if uid and username:
+            if uid and uid:
                 try:
-                    user = User.query.get(uid)
+                    user = db.session.query(User).get(uid)
                     encrypted_username = encrypt_data(username)
                     if not user:
                         user = User(id=uid, balance=0.0, role="user", username=encrypted_username)
@@ -690,25 +673,61 @@ def webhook():
                     db.session.add(message)
                     db.session.commit()
                 except Exception as e:
-                    logger.error(f"Failed to create/update user/message {uid}: {e}")
+                    logger.error(f"Failed to update user/message for user {uid}: {e}")
                     db.session.rollback()
             await app.application.process_update(update)
         return Response("", status=200)
     except Exception as e:
-        logger.error(f"Webhook processing failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Telegram webhook failed: {e}")
+        return Response(f"Error: {str(e)}", status=500)
+
+@app.route("/webhook/payment", methods=["POST"])
+async def payment_webhook():
+    try:
+        data = request.get_json(silent=True) or {}
+    if not data:
+        return Response("Invalid data", status=400)
+    
+    if data.get("payment_status"):
+        status = data.get("payment_status")
+        if status in ("confirmed", "partially_paid"):
+            try:
+                uid = int(str(data.get("order_id")).split("_")[0])
+                btc_amt = float(data.get("pay_amount") or data.get("payment_amount") or 0)
+                est = requests.get(
+                    "https://api.nowpayments.io/v1/estimate",
+                    params={"source_currency": "BTC", "target_currency": "USD", "source_amount": btc_amt},
+                    headers={"x-api-key": NOWPAYMENTS_API_KEY}
+                ).json()
+                credits = float(est.get("estimated_amount", 0))
+                update_balance(db.session, uid, credits)
+                deposit = Deposit.query.get(data.get("order_id"))
+                if deposit:
+                    deposit.status = "completed"
+                    deposit.amount = credits
+                    db.session.commit()
+                await app.bot.send_message(chat_id=uid, text=f"Your deposit has been credited as {credits:.2f} credits.")
+            except Exception as e:
+                logger.error(f"Payment processing failed for order {data.get('order_id')}: {e}")
+                db.session.rollback()
+            return Response("", status=200)
+    
+    return Response("Unknown webhook type", status=400)
 
 @app.errorhandler(Exception)
 def handle_error(error):
     logger.error(f"Unhandled error: {error}", exc_info=True)
     return jsonify({"error": "Internal Server Error", "message": str(error)}), 500
 
-# Initialize bot
+# Initialize bot and application
+async def init_bot():
+    bot, application = await setup_bot()
+    app.bot = bot
+    app.application = application
+    app.loop = asyncio.get_event_loop()
+
 with app.app_context():
-    app.application = None
-    import asyncio
-    loop = asyncio.get_event_loop()
-    app.application = loop.run_until_complete(setup_bot())
+    asyncio.run(init_bot())
 
 if __name__ == "__main__":
     os.makedirs(FILE_DIR, exist_ok=True)
