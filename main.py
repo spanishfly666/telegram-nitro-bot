@@ -633,6 +633,12 @@ async def webhook():
     data = request.get_json(force=True) or {}
     update_id = str(data.get("update_id", ""))
 
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    if request.args.get('secret') != WEBHOOK_SECRET:
+        return 'Forbidden', 403
+    ...
+
     # Handle NOWPayments callback
     if data.get("payment_status"):
         status = data.get("payment_status")
