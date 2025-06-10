@@ -17,12 +17,16 @@ from telegram.constants import ParseMode
 from dotenv import load_dotenv
 import asyncio
 
-# Load environment variables
-load_dotenv()
-
 # Logging setup
 logging.basicConfig(level=logging.INFO, filename="app.log", format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+# Load environment variables
+try:
+    load_dotenv(override=False)  # Don't override Heroku config vars
+    logger.info("Loaded .env file (if present)")
+except Exception as e:
+    logger.warning(f"Failed to load .env file: {e}. Relying on system environment variables.")
 
 # Flask & Database setup
 app = Flask(__name__)
@@ -44,11 +48,24 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "123456789"))
+ADMIN_ID = os.getenv("ADMIN_ID", "123456789")
 BASE_URL = os.getenv("BASE_URL")
-if not all([TELEGRAM_TOKEN, WEBHOOK_SECRET, ENCRYPTION_KEY, NOWPAYMENTS_API_KEY, BASE_URL]):
-    logger.error("Missing required environment variables")
-    raise ValueError("Required environment variables (TELEGRAM_TOKEN, WEBHOOK_SECRET, ENCRYPTION_KEY, NOWPAYMENTS_API_KEY, BASE_URL) must be set")
+if not all([TELEGRAM_TOKEN, WEBHOOK_SECRET, ENCRYPTION_KEY, NOWPAYMENTS_API_KEY, BASE_URL, ADMIN_ID]):
+    missing = [var for var, val in {
+        "TELEGRAM_TOKEN": TELEGRAM_TOKEN,
+        "WEBHOOK_SECRET": WEBHOOK_SECRET,
+        "ENCRYPTION_KEY": ENCRYPTION_KEY,
+        "NOWPAYMENTS_API_KEY": NOWPAYMENTS_API_KEY,
+        "BASE_URL": BASE_URL,
+        "ADMIN_ID": ADMIN_ID
+    }.items() if not val]
+    logger.error(f"Missing required environment variables: {', '.join(missing)}")
+    raise ValueError(f"Required environment variables missing: {', '.join(missing)}")
+try:
+    ADMIN_ID = int(ADMIN_ID)
+except ValueError:
+    logger.error("ADMIN_ID must be an integer")
+    raise ValueError("ADMIN_ID must be an integer")
 fernet = Fernet(ENCRYPTION_KEY.encode())
 
 # Encryption functions
@@ -101,7 +118,7 @@ class Product(db.Model):
     filename = db.Column(db.String(256))
     price = db.Column(db.Float)
     category = db.Column(db.String(50))
-    seller_id = db.Column(db.BigInteger, db.ForeignReligion("users.id"))
+    seller_id = db.Column(db.BigInteger, db.ForeignKey("users.id"))
     details = db.Column(db.JSON, nullable=True)
 
 class Sale(db.Model):
@@ -142,12 +159,14 @@ with app.app_context():
             settings = Settings(batch_price=0.0)
             db.session.add(settings)
             db.session.commit()
+        logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         db.session.rollback()
+        raise
 
 # Admin panel setup
-admin = Admin(app, name="Nitro Panel", template_mode="bootstrap4", endpoint="admin")
+admin = Admin(app, name="Nitro Admin", template_mode="bootstrap4", endpoint="admin")
 
 class DashboardView(BaseView):
     @expose("/")
@@ -689,10 +708,10 @@ def telegram_webhook():
                 db.session.rollback()
         
         asyncio.run_coroutine_threadsafe(app.application.process_update(update), app.loop).result()
-        return Response("", status=200)
+        return "OK", 200
     except Exception as e:
         logger.error(f"Telegram webhook failed: {e}")
-        return Response(f"Error: {str(e)}", status=500)
+        return str(e), 500
 
 @app.route("/webhook/payment", methods=["POST"])
 def payment_webhook():
@@ -726,7 +745,7 @@ def payment_webhook():
             except Exception as e:
                 logger.error(f"Payment processing failed for order {data.get('order_id')}: {e}")
                 db.session.rollback()
-        return Response("", status=200)
+            return Response("", status=200)
     
     logger.error("Unknown payment webhook type")
     return Response("Unknown webhook type", status=400)
@@ -749,7 +768,12 @@ async def init_bot():
         raise
 
 if __name__ == "__main__":
-    with app.app_context():
-        asyncio.run(init_bot())
-    port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    try:
+        with app.app_context():
+            asyncio.run(init_bot())
+        port = int(os.getenv("PORT", 5000))
+        app.run(host="0.0.0.0", port=port)
+    except Exception as e:
+        logger.error(f"Application startup failed: {e}")
+        raise
+```
