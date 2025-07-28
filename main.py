@@ -29,8 +29,8 @@ try:
 except Exception as e:
     logger.warning(f"Failed to load .env file: {e}. Relying on system environment variables.")
 
-# Quart & Database setup
-app = Quart(__name__)
+# Flask & Database setup
+app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET", "default-secret-key")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "postgresql://localhost/nitro_bot").replace("postgres://", "postgresql://")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
