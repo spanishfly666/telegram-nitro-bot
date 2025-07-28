@@ -1,0 +1,116 @@
+2025-07-28 23:32:25,170 - INFO - Loaded .env file (if present)
+2025-07-28 23:32:26,887 - INFO - Database initialized successfully
+2025-07-28 23:32:27,130 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/setWebhook "HTTP/1.1 200 OK"
+2025-07-28 23:32:27,131 - INFO - Webhook set to https://telegram-nitro-bot-3b1ee249dc12.herokuapp.com/webhook/telegram
+2025-07-28 23:32:27,131 - INFO - Bot initialized successfully
+2025-07-28 23:32:33,711 - INFO - Loaded .env file (if present)
+2025-07-28 23:32:34,895 - INFO - Database initialized successfully
+2025-07-28 23:32:35,114 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/setWebhook "HTTP/1.1 200 OK"
+2025-07-28 23:32:35,114 - INFO - Webhook set to https://telegram-nitro-bot-3b1ee249dc12.herokuapp.com/webhook/telegram
+2025-07-28 23:32:35,114 - INFO - Bot initialized successfully
+2025-07-28 23:32:41,907 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://192.168.1.102:8000
+2025-07-28 23:32:41,907 - INFO - [33mPress CTRL+C to quit[0m
+2025-07-28 23:33:11,241 - INFO - Loaded .env file (if present)
+2025-07-28 23:33:12,314 - INFO - Database initialized successfully
+2025-07-28 23:33:12,532 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/setWebhook "HTTP/1.1 200 OK"
+2025-07-28 23:33:12,532 - INFO - Webhook set to https://telegram-nitro-bot-3b1ee249dc12.herokuapp.com/webhook/telegram
+2025-07-28 23:33:12,532 - INFO - Bot initialized successfully
+2025-07-28 23:33:17,544 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://192.168.1.102:8000
+2025-07-28 23:33:17,544 - INFO - [33mPress CTRL+C to quit[0m
+2025-07-28 23:34:00,871 - INFO - Loaded .env file (if present)
+2025-07-28 23:34:02,066 - INFO - Database initialized successfully
+2025-07-28 23:34:02,275 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/setWebhook "HTTP/1.1 200 OK"
+2025-07-28 23:34:02,275 - INFO - Webhook set to https://telegram-nitro-bot-3b1ee249dc12.herokuapp.com/webhook/telegram
+2025-07-28 23:34:02,275 - INFO - Bot initialized successfully
+2025-07-28 23:34:07,329 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://192.168.1.102:8000
+2025-07-28 23:34:07,329 - INFO - [33mPress CTRL+C to quit[0m
+2025-07-28 23:34:07,331 - INFO -  * Restarting with stat
+2025-07-28 23:34:07,686 - INFO - Loaded .env file (if present)
+2025-07-28 23:34:08,896 - INFO - Database initialized successfully
+2025-07-28 23:34:09,115 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/setWebhook "HTTP/1.1 200 OK"
+2025-07-28 23:34:09,116 - INFO - Webhook set to https://telegram-nitro-bot-3b1ee249dc12.herokuapp.com/webhook/telegram
+2025-07-28 23:34:09,116 - INFO - Bot initialized successfully
+2025-07-28 23:34:09,149 - WARNING -  * Debugger is active!
+2025-07-28 23:34:09,160 - INFO -  * Debugger PIN: 137-777-261
+2025-07-28 23:35:17,153 - INFO - Loaded .env file (if present)
+2025-07-28 23:35:21,001 - INFO - Loaded .env file (if present)
+2025-07-28 23:35:22,093 - INFO - Database initialized successfully
+2025-07-28 23:35:22,328 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/setWebhook "HTTP/1.1 400 Bad Request"
+2025-07-28 23:35:22,329 - ERROR - Bot setup failed: Bad webhook: an https url must be provided for webhook
+2025-07-28 23:35:22,329 - ERROR - Bot initialization failed: Bad webhook: an https url must be provided for webhook
+2025-07-28 23:35:22,329 - ERROR - Application startup failed: Bad webhook: an https url must be provided for webhook
+2025-07-28 23:36:27,245 - INFO - Loaded .env file (if present)
+2025-07-28 23:36:28,353 - INFO - Database initialized successfully
+2025-07-28 23:36:28,543 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-28 23:36:28,544 - INFO - Running in local mode - webhook cleared
+2025-07-28 23:36:28,544 - INFO - Bot initialized successfully
+2025-07-28 23:36:28,544 - INFO - Started bot polling in background thread
+2025-07-28 23:36:33,575 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://192.168.1.102:8000
+2025-07-28 23:36:33,575 - INFO - [33mPress CTRL+C to quit[0m
+2025-07-28 23:36:33,575 - INFO -  * Restarting with stat
+2025-07-28 23:36:33,919 - INFO - Loaded .env file (if present)
+2025-07-28 23:36:35,013 - INFO - Database initialized successfully
+2025-07-28 23:36:35,242 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-28 23:36:35,242 - INFO - Running in local mode - webhook cleared
+2025-07-28 23:36:35,242 - INFO - Bot initialized successfully
+2025-07-28 23:36:35,242 - INFO - Started bot polling in background thread
+2025-07-28 23:36:35,269 - WARNING -  * Debugger is active!
+2025-07-28 23:36:35,277 - INFO -  * Debugger PIN: 137-777-261
+2025-07-28 23:37:15,953 - INFO - Loaded .env file (if present)
+2025-07-28 23:37:17,053 - INFO - Database initialized successfully
+2025-07-28 23:37:17,275 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-28 23:37:17,276 - INFO - Running in local mode - webhook cleared
+2025-07-28 23:37:17,276 - INFO - Bot initialized successfully
+2025-07-28 23:37:17,276 - INFO - Started bot polling in background thread
+2025-07-28 23:38:02,923 - INFO - Loaded .env file (if present)
+2025-07-28 23:38:04,053 - INFO - Database initialized successfully
+2025-07-28 23:38:04,053 - INFO - Skipping bot initialization for local development
+2025-07-28 23:38:04,053 - INFO - Bot will only work on Railway with proper environment variables
+2025-07-28 23:38:09,094 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://192.168.1.102:8000
+2025-07-28 23:38:09,094 - INFO - [33mPress CTRL+C to quit[0m
+2025-07-28 23:38:09,095 - INFO -  * Restarting with stat
+2025-07-28 23:38:09,488 - INFO - Loaded .env file (if present)
+2025-07-28 23:38:10,724 - INFO - Database initialized successfully
+2025-07-28 23:38:10,724 - INFO - Skipping bot initialization for local development
+2025-07-28 23:38:10,724 - INFO - Bot will only work on Railway with proper environment variables
+2025-07-28 23:38:10,749 - WARNING -  * Debugger is active!
+2025-07-28 23:38:10,760 - INFO -  * Debugger PIN: 137-777-261
+2025-07-28 23:38:22,170 - INFO - Loaded .env file (if present)
+2025-07-28 23:38:23,243 - INFO - Database initialized successfully
+2025-07-28 23:38:23,244 - INFO - Skipping bot initialization for local development
+2025-07-28 23:38:23,244 - INFO - Bot will only work on Railway with proper environment variables
+2025-07-28 23:38:28,287 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://192.168.1.102:8000
+2025-07-28 23:38:28,287 - INFO - [33mPress CTRL+C to quit[0m
+2025-07-28 23:38:28,289 - INFO -  * Restarting with stat
+2025-07-28 23:38:28,653 - INFO - Loaded .env file (if present)
+2025-07-28 23:38:29,763 - INFO - Database initialized successfully
+2025-07-28 23:38:29,763 - INFO - Skipping bot initialization for local development
+2025-07-28 23:38:29,763 - INFO - Bot will only work on Railway with proper environment variables
+2025-07-28 23:38:29,787 - WARNING -  * Debugger is active!
+2025-07-28 23:38:29,795 - INFO -  * Debugger PIN: 137-777-261
+2025-07-28 23:42:18,359 - INFO -  * Detected change in '/Users/callmenikk/Desktop/telegram-nitro-bot/run_bot_locally.py', reloading
+2025-07-28 23:42:18,484 - INFO -  * Restarting with stat
+2025-07-28 23:42:18,984 - INFO - Loaded .env file (if present)
+2025-07-28 23:42:20,211 - INFO - Database initialized successfully
+2025-07-28 23:42:20,211 - INFO - Skipping bot initialization for local development
+2025-07-28 23:42:20,212 - INFO - Bot will only work on Railway with proper environment variables
+2025-07-28 23:42:20,233 - WARNING -  * Debugger is active!
+2025-07-28 23:42:20,240 - INFO -  * Debugger PIN: 137-777-261

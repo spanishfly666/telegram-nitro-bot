@@ -45,7 +45,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
 NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY")
-ADMIN_ID = os.getenv("ADMIN_ID", "123456789")
+ADMIN_ID = os.getenv("ADMIN_ID")
 BASE_URL = os.getenv("BASE_URL")
 if not all([TELEGRAM_TOKEN, WEBHOOK_SECRET, ENCRYPTION_KEY, NOWPAYMENTS_API_KEY, BASE_URL, ADMIN_ID]):
     missing = [var for var, val in {
@@ -597,9 +597,17 @@ async def setup_bot():
         application.add_handler(CallbackQueryHandler(handle_callback))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         application.add_handler(MessageHandler(filters.COMMAND, lambda update, context: update.message.reply_text("Unknown command. Use /start to begin.")))
-        webhook_url = f"{BASE_URL}/webhook/telegram"
-        await application.bot.set_webhook(url=webhook_url, secret_token=WEBHOOK_SECRET)
-        logger.info(f"Webhook set to {webhook_url}")
+        
+        # Only set webhook in production (when BASE_URL is available and HTTPS)
+        if BASE_URL and BASE_URL.startswith('https://'):
+            webhook_url = f"{BASE_URL}/webhook/telegram"
+            await application.bot.set_webhook(url=webhook_url, secret_token=WEBHOOK_SECRET)
+            logger.info(f"Webhook set to {webhook_url}")
+        else:
+            # For local development, clear any existing webhook
+            await application.bot.delete_webhook()
+            logger.info("Running in local mode - webhook cleared")
+            
         return application
     except Exception as e:
         logger.error(f"Bot setup failed: {e}")
@@ -773,12 +781,19 @@ def init_bot():
 
 if __name__ == "__main__":
     try:
-        # Initialize database and bot
+        # Initialize database
         init_db()
-        init_bot()
         
-        port = int(os.getenv("PORT"))  # No fallback for production
-        app.run(host="0.0.0.0", port=port)
+        # Only initialize bot for production (with HTTPS webhook)
+        if BASE_URL and BASE_URL.startswith('https://'):
+            init_bot()
+            logger.info("Bot initialized for production webhook mode")
+        else:
+            logger.info("Skipping bot initialization for local development")
+            logger.info("Bot will only work on Railway with proper environment variables")
+        
+        port = int(os.getenv("PORT", "8000"))  # Fallback for local dev
+        app.run(host="0.0.0.0", port=port, debug=True)
     except Exception as e:
         logger.error(f"Application startup failed: {e}")
         raise
