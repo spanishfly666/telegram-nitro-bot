@@ -114,3 +114,333 @@
 2025-07-28 23:42:20,212 - INFO - Bot will only work on Railway with proper environment variables
 2025-07-28 23:42:20,233 - WARNING -  * Debugger is active!
 2025-07-28 23:42:20,240 - INFO -  * Debugger PIN: 137-777-261
+2025-07-29 00:36:14,382 - INFO - Loaded .env file (if present)
+2025-07-29 00:36:15,570 - INFO - Database initialized successfully
+2025-07-29 00:36:15,771 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-29 00:36:15,772 - INFO - Bot configured for polling mode - webhooks disabled
+2025-07-29 00:36:15,772 - INFO - Bot initialized successfully
+2025-07-29 00:36:15,772 - INFO - Bot initialized for polling mode
+2025-07-29 00:36:15,772 - INFO - Bot polling started in background
+2025-07-29 00:36:20,814 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://192.168.1.102:8000
+2025-07-29 00:36:20,814 - INFO - [33mPress CTRL+C to quit[0m
+2025-07-29 00:36:20,815 - INFO -  * Restarting with stat
+2025-07-29 00:36:21,201 - INFO - Loaded .env file (if present)
+2025-07-29 00:36:22,482 - INFO - Database initialized successfully
+2025-07-29 00:36:22,681 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-29 00:36:22,681 - INFO - Bot configured for polling mode - webhooks disabled
+2025-07-29 00:36:22,681 - INFO - Bot initialized successfully
+2025-07-29 00:36:22,681 - INFO - Bot initialized for polling mode
+2025-07-29 00:36:22,681 - INFO - Bot polling started in background
+2025-07-29 00:36:22,704 - WARNING -  * Debugger is active!
+2025-07-29 00:36:22,713 - INFO -  * Debugger PIN: 137-777-261
+2025-07-29 00:36:42,848 - INFO -  * Detected change in '/Users/callmenikk/Desktop/telegram-nitro-bot/run_main_polling.py', reloading
+2025-07-29 00:36:42,941 - INFO -  * Restarting with stat
+2025-07-29 00:36:43,458 - INFO - Loaded .env file (if present)
+2025-07-29 00:36:44,725 - INFO - Database initialized successfully
+2025-07-29 00:36:44,944 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-29 00:36:44,944 - INFO - Bot configured for polling mode - webhooks disabled
+2025-07-29 00:36:44,944 - INFO - Bot initialized successfully
+2025-07-29 00:36:44,944 - INFO - Bot initialized for polling mode
+2025-07-29 00:36:44,945 - INFO - Bot polling started in background
+2025-07-29 00:36:44,975 - WARNING -  * Debugger is active!
+2025-07-29 00:36:44,982 - INFO -  * Debugger PIN: 137-777-261
+2025-07-29 00:37:59,779 - INFO - Loaded .env file (if present)
+2025-07-29 00:37:59,795 - INFO - Starting Telegram bot in polling mode...
+2025-07-29 00:38:00,858 - INFO - Database initialized successfully
+2025-07-29 00:38:01,088 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-29 00:38:01,088 - INFO - Bot configured for polling mode - webhooks disabled
+2025-07-29 00:38:01,088 - INFO - Bot initialized successfully
+2025-07-29 00:38:01,088 - ERROR - Bot failed: Cannot close a running event loop
+2025-07-29 00:38:15,077 - INFO - Loaded .env file (if present)
+2025-07-29 00:38:15,091 - INFO - Starting Telegram bot in polling mode...
+2025-07-29 00:38:16,198 - INFO - Database initialized successfully
+2025-07-29 00:38:16,396 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-29 00:38:16,396 - INFO - Bot configured for polling mode - webhooks disabled
+2025-07-29 00:38:16,396 - INFO - Bot initialized successfully
+2025-07-29 00:38:16,396 - ERROR - Bot failed: Cannot close a running event loop
+2025-07-29 00:39:16,809 - INFO - Loaded .env file (if present)
+2025-07-29 00:39:18,018 - INFO - Database initialized successfully
+2025-07-29 00:39:18,019 - INFO - Database initialized
+2025-07-29 00:39:18,094 - INFO - Starting Telegram bot in polling mode...
+2025-07-29 00:39:18,094 - INFO - Press Ctrl+C to stop
+2025-07-29 00:39:18,217 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getMe "HTTP/1.1 200 OK"
+2025-07-29 00:39:18,248 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-29 00:39:18,249 - INFO - Application started
+2025-07-29 00:39:23,050 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:23,051 - INFO - Application is stopping. This might take a moment.
+2025-07-29 00:39:23,052 - INFO - Application.stop() complete
+2025-07-29 00:39:30,996 - INFO - Loaded .env file (if present)
+2025-07-29 00:39:32,117 - INFO - Database initialized successfully
+2025-07-29 00:39:32,117 - INFO - Database initialized
+2025-07-29 00:39:32,191 - INFO - Starting Telegram bot in polling mode...
+2025-07-29 00:39:32,191 - INFO - Press Ctrl+C to stop
+2025-07-29 00:39:32,344 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getMe "HTTP/1.1 200 OK"
+2025-07-29 00:39:32,378 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-29 00:39:32,379 - INFO - Application started
+2025-07-29 00:39:36,116 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:36,291 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 00:39:37,983 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:38,141 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 00:39:38,142 - ERROR - Get balance failed for user 7142163611: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:38,309 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 00:39:38,310 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_application.py", line 1298, in process_update
+    await coroutine
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_handlers/basehandler.py", line 158, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 423, in handle_callback
+    with session_scope() as session:
+         ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 176, in session_scope
+    session.close()
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 526, in close
+    return self._proxied.close()
+           ^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 197, in _proxied
+    return self.registry()
+           ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/util/_collections.py", line 634, in __call__
+    key = self.scopefunc()
+          ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/flask_sqlalchemy/session.py", line 111, in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/werkzeug/local.py", line 519, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:40,075 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:40,239 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 00:39:40,241 - ERROR - Get balance failed for user 7142163611: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:40,407 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 00:39:40,409 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_application.py", line 1298, in process_update
+    await coroutine
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_handlers/basehandler.py", line 158, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 423, in handle_callback
+    with session_scope() as session:
+         ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 176, in session_scope
+    session.close()
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 526, in close
+    return self._proxied.close()
+           ^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 197, in _proxied
+    return self.registry()
+           ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/util/_collections.py", line 634, in __call__
+    key = self.scopefunc()
+          ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/flask_sqlalchemy/session.py", line 111, in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/werkzeug/local.py", line 519, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:41,815 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:41,962 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 00:39:42,121 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 00:39:42,122 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_application.py", line 1298, in process_update
+    await coroutine
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_handlers/basehandler.py", line 158, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 423, in handle_callback
+    with session_scope() as session:
+         ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 176, in session_scope
+    session.close()
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 526, in close
+    return self._proxied.close()
+           ^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 197, in _proxied
+    return self.registry()
+           ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/util/_collections.py", line 634, in __call__
+    key = self.scopefunc()
+          ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/flask_sqlalchemy/session.py", line 111, in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/werkzeug/local.py", line 519, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:43,521 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:43,673 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 00:39:43,674 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_application.py", line 1298, in process_update
+    await coroutine
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_handlers/basehandler.py", line 158, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 423, in handle_callback
+    with session_scope() as session:
+         ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 176, in session_scope
+    session.close()
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 526, in close
+    return self._proxied.close()
+           ^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 197, in _proxied
+    return self.registry()
+           ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/util/_collections.py", line 634, in __call__
+    key = self.scopefunc()
+          ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/flask_sqlalchemy/session.py", line 111, in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/werkzeug/local.py", line 519, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:45,850 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:46,007 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 00:39:46,008 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_application.py", line 1298, in process_update
+    await coroutine
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_handlers/basehandler.py", line 158, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 423, in handle_callback
+    with session_scope() as session:
+         ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 176, in session_scope
+    session.close()
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 526, in close
+    return self._proxied.close()
+           ^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 197, in _proxied
+    return self.registry()
+           ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/util/_collections.py", line 634, in __call__
+    key = self.scopefunc()
+          ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/flask_sqlalchemy/session.py", line 111, in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/werkzeug/local.py", line 519, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:46,660 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:46,814 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 00:39:46,980 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 00:39:46,982 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_application.py", line 1298, in process_update
+    await coroutine
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_handlers/basehandler.py", line 158, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 423, in handle_callback
+    with session_scope() as session:
+         ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 176, in session_scope
+    session.close()
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 526, in close
+    return self._proxied.close()
+           ^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 197, in _proxied
+    return self.registry()
+           ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/util/_collections.py", line 634, in __call__
+    key = self.scopefunc()
+          ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/flask_sqlalchemy/session.py", line 111, in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/werkzeug/local.py", line 519, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:49,789 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:49,952 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 00:39:49,953 - ERROR - No error handlers are registered, logging exception.
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_application.py", line 1298, in process_update
+    await coroutine
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/telegram/ext/_handlers/basehandler.py", line 158, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 423, in handle_callback
+    with session_scope() as session:
+         ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "/Users/callmenikk/Desktop/telegram-nitro-bot/main.py", line 176, in session_scope
+    session.close()
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 526, in close
+    return self._proxied.close()
+           ^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 197, in _proxied
+    return self.registry()
+           ^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/sqlalchemy/util/_collections.py", line 634, in __call__
+    key = self.scopefunc()
+          ^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/flask_sqlalchemy/session.py", line 111, in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/werkzeug/local.py", line 519, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+2025-07-29 00:39:57,837 - INFO - HTTP Request: POST https://api.telegram.org/bot7395477112:AAETUn8FSTN_l79Q7D7pUvqm4WLxTI3AIeE/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 00:39:57,838 - INFO - Application is stopping. This might take a moment.
+2025-07-29 00:39:57,838 - INFO - Application.stop() complete

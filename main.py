@@ -589,23 +589,7 @@ async def handle_message(update: Update, context):
             return
     await update.message.reply_text("Sorry, I didn't understand that command. Use /start to begin.")
 
-# Bot setup
-async def setup_bot():
-    try:
-        application = Application.builder().token(TELEGRAM_TOKEN).build()
-        application.add_handler(CommandHandler("start", start))
-        application.add_handler(CallbackQueryHandler(handle_callback))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-        application.add_handler(MessageHandler(filters.COMMAND, lambda update, context: update.message.reply_text("Unknown command. Use /start to begin.")))
-        
-        # Always use polling - clear any existing webhook
-        await application.bot.delete_webhook()
-        logger.info("Bot configured for polling mode - webhooks disabled")
-            
-        return application
-    except Exception as e:
-        logger.error(f"Bot setup failed: {e}")
-        raise
+# Bot setup function removed - using direct setup in main()
 
 # Business logic
 def get_balance(session, user_id):
@@ -719,41 +703,37 @@ async def handle_error(error):
     logger.error(f"Unhandled error: {error}", exc_info=True)
     return jsonify({"error": "Internal Server Error", "message": str(error)}), 500
 
-# Initialize bot
-def init_bot():
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        app.application = loop.run_until_complete(setup_bot())
-        app.bot = app.application.bot
-        logger.info("Bot initialized successfully")
-    except Exception as e:
-        logger.error(f"Bot initialization failed: {e}")
-        raise
+# init_bot function removed - using direct setup in main()
 
-if __name__ == "__main__":
+def main():
+    if not TELEGRAM_TOKEN:
+        logger.error("TELEGRAM_TOKEN not found in environment variables!")
+        logger.error("Set TELEGRAM_TOKEN in your .env file or environment")
+        return
+    
     try:
         # Initialize database
         init_db()
+        logger.info("Database initialized")
         
-        # Initialize bot for polling mode
-        init_bot()
-        logger.info("Bot initialized for polling mode")
+        # Create application - using sync approach like run_main_polling.py
+        application = Application.builder().token(TELEGRAM_TOKEN).build()
         
-        # Start bot polling in background thread
-        import threading
-        def start_polling():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(app.application.run_polling())
+        # Add handlers
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CallbackQueryHandler(handle_callback))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        application.add_handler(MessageHandler(filters.COMMAND, lambda update, context: update.message.reply_text("Unknown command. Use /start to begin.")))
         
-        polling_thread = threading.Thread(target=start_polling)
-        polling_thread.daemon = True
-        polling_thread.start()
-        logger.info("Bot polling started in background")
+        logger.info("Starting Telegram bot in polling mode...")
+        logger.info("Press Ctrl+C to stop")
         
-        port = int(os.getenv("PORT", "8000"))  # Fallback for local dev
-        app.run(host="0.0.0.0", port=port, debug=True)
+        # Run with polling - this works like run_main_polling.py
+        application.run_polling()
+        
     except Exception as e:
-        logger.error(f"Application startup failed: {e}")
+        logger.error(f"Bot failed: {e}")
         raise
+
+if __name__ == "__main__":
+    main()
