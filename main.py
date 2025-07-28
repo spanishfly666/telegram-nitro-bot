@@ -598,15 +598,9 @@ async def setup_bot():
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
         application.add_handler(MessageHandler(filters.COMMAND, lambda update, context: update.message.reply_text("Unknown command. Use /start to begin.")))
         
-        # Only set webhook in production (when BASE_URL is available and HTTPS)
-        if BASE_URL and BASE_URL.startswith('https://'):
-            webhook_url = f"{BASE_URL}/webhook/telegram"
-            await application.bot.set_webhook(url=webhook_url, secret_token=WEBHOOK_SECRET)
-            logger.info(f"Webhook set to {webhook_url}")
-        else:
-            # For local development, clear any existing webhook
-            await application.bot.delete_webhook()
-            logger.info("Running in local mode - webhook cleared")
+        # Always use polling - clear any existing webhook
+        await application.bot.delete_webhook()
+        logger.info("Bot configured for polling mode - webhooks disabled")
             
         return application
     except Exception as e:
@@ -684,49 +678,7 @@ async def create_invoice(usd_amount, order_id):
 async def index():
     return "OK", 200
 
-@app.route("/webhook/telegram", methods=["POST"])
-async def telegram_webhook():
-    if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != WEBHOOK_SECRET:
-        logger.error(f"Invalid webhook secret: {request.headers.get('X-Telegram-Bot-Api-Secret-Token')}")
-        return Response("Unauthorized", status=403)
-    
-    data = await request.get_json()
-    if not data:
-        logger.error("Invalid webhook data received")
-        return Response("Invalid data", status=400)
-    
-    try:
-        update = Update.de_json(data, app.bot)
-        if not update:
-            logger.error("Failed to parse update")
-            return Response("Invalid update", status=400)
-        
-        with session_scope() as session:
-            uid = (update.message.from_user.id if update.message else
-                   update.callback_query.from_user.id if update.callback_query else None)
-            username = (update.message.from_user.username or f"User_{uid}" if update.message else
-                       update.callback_query.from_user.username or f"User_{uid}" if update.callback_query else None)
-            if uid and username:
-                user = session.query(User).get(uid)
-                encrypted_username = encrypt_data(username)
-                if not user:
-                    user = User(id=uid, balance=0.0, role="user", username=encrypted_username)
-                    session.add(user)
-                else:
-                    user.username = encrypted_username
-                message = Message(
-                    update_id=str(data.get("update_id", "")),
-                    user_id=uid,
-                    raw_data=json.dumps(data, default=str),
-                    timestamp=datetime.utcnow()
-                )
-                session.add(message)
-        
-        await app.application.process_update(update)
-        return Response("OK", status=200)
-    except Exception as e:
-        logger.error(f"Telegram webhook failed: {e}")
-        return Response(str(e), status=500)
+# Telegram webhook removed - using polling mode instead
 
 @app.route("/webhook/payment", methods=["POST"])
 async def payment_webhook():
@@ -784,13 +736,21 @@ if __name__ == "__main__":
         # Initialize database
         init_db()
         
-        # Only initialize bot for production (with HTTPS webhook)
-        if BASE_URL and BASE_URL.startswith('https://'):
-            init_bot()
-            logger.info("Bot initialized for production webhook mode")
-        else:
-            logger.info("Skipping bot initialization for local development")
-            logger.info("Bot will only work on Railway with proper environment variables")
+        # Initialize bot for polling mode
+        init_bot()
+        logger.info("Bot initialized for polling mode")
+        
+        # Start bot polling in background thread
+        import threading
+        def start_polling():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(app.application.run_polling())
+        
+        polling_thread = threading.Thread(target=start_polling)
+        polling_thread.daemon = True
+        polling_thread.start()
+        logger.info("Bot polling started in background")
         
         port = int(os.getenv("PORT", "8000"))  # Fallback for local dev
         app.run(host="0.0.0.0", port=port, debug=True)
