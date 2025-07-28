@@ -1,6 +1,8 @@
 anyio==4.9.0
 certifi==2025.4.26
 charset-normalizer==3.4.2
+quart==0.19.4
+quart-sqlalchemy==3.0.4
 gunicorn==23.0.0
 h11==0.16.0
 httpcore==1.0.9
