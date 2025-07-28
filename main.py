@@ -176,11 +176,10 @@ def session_scope():
         session.close()
 
 # Initialize database
-@app.before_serving
-async def init_db():
+def init_db():
     try:
         os.makedirs(FILE_DIR, exist_ok=True)
-        async with app.app_context():
+        with app.app_context():
             db.create_all()
             if not Settings.query.first():
                 settings = Settings(batch_price=0.0)
@@ -761,10 +760,11 @@ async def handle_error(error):
     return jsonify({"error": "Internal Server Error", "message": str(error)}), 500
 
 # Initialize bot
-@app.before_serving
-async def init_bot():
+def init_bot():
     try:
-        app.application = await setup_bot()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        app.application = loop.run_until_complete(setup_bot())
         app.bot = app.application.bot
         logger.info("Bot initialized successfully")
     except Exception as e:
@@ -773,6 +773,10 @@ async def init_bot():
 
 if __name__ == "__main__":
     try:
+        # Initialize database and bot
+        init_db()
+        init_bot()
+        
         port = int(os.getenv("PORT"))  # No fallback for production
         app.run(host="0.0.0.0", port=port)
     except Exception as e:
